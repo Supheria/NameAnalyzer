@@ -1,4 +1,4 @@
-﻿using Parser.data;
+using Parser.data;
 
 namespace Parser
 {
@@ -8,6 +8,8 @@ namespace Parser
 
         public Analysis()
         {
+            // 防止为空导致索引不存在
+            LevelMap[0] = new() { [""] = new() };
         }
 
         public Analysis(string fileOrFolder)
