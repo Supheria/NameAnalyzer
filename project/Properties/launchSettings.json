@@ -1,0 +1,10 @@
+{
+  "profiles": {
+    "NameAnalyzer": {
+      "commandName": "MsixPackage"
+    },
+    "NameAnalyzer (Unpackaged)": {
+      "commandName": "Project"
+    }
+  }
+}
