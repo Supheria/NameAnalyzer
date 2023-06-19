@@ -44,9 +44,17 @@
                     Text="{x:Bind helper:CurrentContext.Title}" />
             </StackPanel>
         </Border>
-        <NumberBox
+        <ComboBox
             Grid.Row="1"
             Grid.Column="0"
+            Margin="5,0,0,0"
+            VerticalAlignment="Center"
+            ItemsSource="{x:Bind _vm.NamePickerSource, Mode=OneWay}"
+            SelectedIndex="{x:Bind _vm.SelectedNameIndex, Mode=TwoWay}"
+            ToolTipService.ToolTip="Name" />
+        <NumberBox
+            Grid.Row="1"
+            Grid.Column="1"
             Margin="5,0,0,0"
             VerticalAlignment="Center"
             Maximum="{x:Bind _vm.MaxLevel, Mode=OneWay}"
@@ -55,25 +63,17 @@
             SpinButtonPlacementMode="Inline"
             ToolTipService.ToolTip="Level"
             Value="{x:Bind _vm.SelectedLevel, Mode=TwoWay}" />
-        <ComboBox
-            Grid.Row="1"
-            Grid.Column="1"
-            Margin="5,0,0,0"
-            VerticalAlignment="Center"
-            ItemsSource="{x:Bind _vm.NamePickerSource, Mode=OneWay}"
-            SelectedIndex="{x:Bind _vm.SelectedNameIndex, Mode=TwoWay}"
-            ToolTipService.ToolTip="Name" />
         <CommandBar
             Grid.Row="1"
             Grid.Column="2"
             OverflowButtonVisibility="Collapsed">
             <AppBarSeparator />
             <AppBarButton
-                Icon="Page"
+                Icon="OpenFile"
                 Tapped="SelectFileTapped"
                 ToolTipService.ToolTip="打开文件" />
             <AppBarButton
-                Icon="Folder"
+                Icon="OpenLocal"
                 Tapped="SelectFolderTapped"
                 ToolTipService.ToolTip="打开文件夹" />
         </CommandBar>

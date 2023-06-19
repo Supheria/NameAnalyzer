@@ -24,14 +24,13 @@ public class MainViewModel : ObservableObject
         get => _analyzer;
         set
         {
-            if (!Equals(_analyzer, value))
-            {
-                _analyzer = value;
-                OnPropertyChanged(nameof(MaxLevel));
-                // 并且刷新NamePickerSource和ListViewSource
-                SelectedLevel = 0;
-                SelectedNameIndex = 0;
-            }
+            if (Equals(_analyzer, value))
+                return;
+            _analyzer = value;
+            OnPropertyChanged(nameof(MaxLevel));
+            // 并且刷新NamePickerSource和ListViewSource
+            SelectedLevel = 0;
+            SelectedNameIndex = 0;
         }
     }
 
@@ -70,7 +69,7 @@ public class MainViewModel : ObservableObject
     /// <summary>
     /// 仅用来调用，自身不绑定
     /// </summary>
-    public Dictionary<string, List<TokenAPI>> NameDictionary => Analyzer.LevelMap[(uint)SelectedLevel];
+    public Dictionary<string, List<Token>> NameDictionary => Analyzer.LevelMap[(uint)SelectedLevel];
 
     /// <summary>
     /// 给NamePicker的<see cref="ComboBox"/>用
@@ -93,50 +92,50 @@ public class MainViewModel : ObservableObject
             {
                 switch (token)
                 {
-                    case ScopeAPI scope:
-                    {
-                        foreach (var subToken in scope.Property)
-                            _ = subs.Add(subToken.Name);
-                        break;
-                    }
-                    case TaggedValueAPI tagged:
-                    {
-                        var sb = new StringBuilder();
-                        _ = sb.Append($"{tagged.Tag}(...) ");
-                        foreach (var value in tagged.Value)
-                            _ = sb.Append($"{value} ");
-
-                        _ = subs.Add(sb.ToString());
-                        break;
-                    }
-                    case ValueArrayAPI vArr:
-                    {
-                        foreach (var value in vArr.Value)
+                    case Scope scope:
                         {
-                            var sb = new StringBuilder();
-                            foreach (var element in value)
-                                _ = sb.Append($"{element} ");
-                            _ = subs.Add(sb.ToString());
+                            foreach (var subToken in scope.Property)
+                                _ = subs.Add(subToken.Name);
+                            break;
                         }
-
-                        break;
-                    }
-                    case TagArrayAPI tArr:
-                    {
-                        foreach (var value in tArr.Value)
+                    case TaggedValue tagged:
                         {
                             var sb = new StringBuilder();
-                            foreach (var pair in value)
+                            _ = sb.Append($"{tagged.Tag}(...) ");
+                            foreach (var value in tagged.Value)
+                                _ = sb.Append($"{value} ");
+
+                            _ = subs.Add(sb.ToString());
+                            break;
+                        }
+                    case ValueArray vArr:
+                        {
+                            foreach (var value in vArr.Value)
                             {
-                                _ = sb.Append($"{pair.Key}(...) ");
-                                foreach (var element in pair.Value)
+                                var sb = new StringBuilder();
+                                foreach (var element in value)
                                     _ = sb.Append($"{element} ");
+                                _ = subs.Add(sb.ToString());
                             }
-                            _ = subs.Add(sb.ToString());
-                        }
 
-                        break;
-                    }
+                            break;
+                        }
+                    case TagArray tArr:
+                        {
+                            foreach (var value in tArr.Value)
+                            {
+                                var sb = new StringBuilder();
+                                foreach (var pair in value)
+                                {
+                                    _ = sb.Append($"{pair.Key}(...) ");
+                                    foreach (var element in pair.Value)
+                                        _ = sb.Append($"{element} ");
+                                }
+                                _ = subs.Add(sb.ToString());
+                            }
+
+                            break;
+                        }
                 }
             }
             return subs;
