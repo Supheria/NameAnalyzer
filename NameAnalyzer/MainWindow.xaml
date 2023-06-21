@@ -20,6 +20,7 @@
             <ColumnDefinition Width="*" />
             <ColumnDefinition Width="Auto" />
             <ColumnDefinition Width="Auto" />
+            <ColumnDefinition Width="Auto" />
         </Grid.ColumnDefinitions>
         <Border
             x:Name="TitleBar"
@@ -65,7 +66,7 @@
             Value="{x:Bind _vm.SelectedLevel, Mode=TwoWay}" />
         <CommandBar
             Grid.Row="1"
-            Grid.Column="2"
+            Grid.Column="3"
             OverflowButtonVisibility="Collapsed">
             <AppBarSeparator />
             <AppBarButton
@@ -76,11 +77,26 @@
                 Icon="OpenLocal"
                 Tapped="SelectFolderTapped"
                 ToolTipService.ToolTip="打开文件夹" />
+            <AppBarButton
+                Visibility="{x:Bind ExceptionVisibility, Mode=OneWay}"
+                Icon="Important"
+                Tapped="OpenExceptionLogTapped"
+                ToolTipService.ToolTip="错误日志" />
         </CommandBar>
         <ListView
             Grid.Row="2"
             Grid.Column="0"
             Grid.ColumnSpan="3"
             ItemsSource="{x:Bind _vm.ListViewSource, Mode=OneWay}" />
+        <TextBlock
+            Grid.Row="2"
+            Grid.Column="3"
+            TextAlignment="Center">
+        <Run FontFamily="Times New Roman" Foreground="DarkGray">
+            Text in a TextBlock doesn't have to be a simple string.</Run>
+        <LineBreak/>
+        <Span>Text can be <Bold>bold</Bold>,
+            <Italic>italic</Italic>, or <Underline>underlined</Underline>. </Span>
+        </TextBlock>
     </Grid>
 </Window>

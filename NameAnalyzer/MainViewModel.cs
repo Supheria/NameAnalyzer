@@ -4,8 +4,8 @@ using System.Linq;
 using System.Text;
 using CommunityToolkit.Mvvm.ComponentModel;
 using Microsoft.UI.Xaml.Controls;
-using Parser;
 using Parser.data;
+using Parser.helper;
 
 namespace NameAnalyzer;
 
@@ -69,7 +69,7 @@ public class MainViewModel : ObservableObject
     /// <summary>
     /// 仅用来调用，自身不绑定
     /// </summary>
-    public Dictionary<string, List<Token>> NameDictionary => Analyzer.LevelMap[(uint)SelectedLevel];
+    public Dictionary<string, List<TokenInfo>> NameDictionary => Analyzer.LevelMap[(uint)SelectedLevel];
 
     /// <summary>
     /// 给NamePicker的<see cref="ComboBox"/>用
@@ -86,54 +86,31 @@ public class MainViewModel : ObservableObject
             if (SelectedNameIndex is -1 || SelectedNameIndex > NamePickerSource.Count)
                 return Array.Empty<string>();
 
-            var tokens = NameDictionary[NamePickerSource[SelectedNameIndex]];
+            var infoList = NameDictionary[NamePickerSource[SelectedNameIndex]];
             var subs = new HashSet<string>();
-            foreach (var token in tokens)
+            foreach (var info in infoList)
             {
-                switch (token)
+                switch (info.Token)
                 {
                     case Scope scope:
                         {
                             foreach (var subToken in scope.Property)
-                                _ = subs.Add(subToken.Name);
+                                _ = subs.Add(subToken.ToString());
                             break;
                         }
-                    case TaggedValue tagged:
+                    case TaggedValue taggedValue:
                         {
-                            var sb = new StringBuilder();
-                            _ = sb.Append($"{tagged.Tag}(...) ");
-                            foreach (var value in tagged.Value)
-                                _ = sb.Append($"{value} ");
-
-                            _ = subs.Add(sb.ToString());
+                            _ = subs.Add(taggedValue.ToString());
                             break;
                         }
-                    case ValueArray vArr:
+                    case ValueArray valueArray:
                         {
-                            foreach (var value in vArr.Value)
-                            {
-                                var sb = new StringBuilder();
-                                foreach (var element in value)
-                                    _ = sb.Append($"{element} ");
-                                _ = subs.Add(sb.ToString());
-                            }
-
+                            _ = subs.Add(valueArray.ToString());
                             break;
                         }
-                    case TagArray tArr:
+                    case TagArray tagArray:
                         {
-                            foreach (var value in tArr.Value)
-                            {
-                                var sb = new StringBuilder();
-                                foreach (var pair in value)
-                                {
-                                    _ = sb.Append($"{pair.Key}(...) ");
-                                    foreach (var element in pair.Value)
-                                        _ = sb.Append($"{element} ");
-                                }
-                                _ = subs.Add(sb.ToString());
-                            }
-
+                            _ = subs.Add(tagArray.ToString());
                             break;
                         }
                 }
