@@ -7,6 +7,7 @@ using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Documents;
 using Parser.Data.TokenTypes;
 using Parser.Helper;
+using Utilities;
 using WinUI3Utilities;
 
 namespace NameAnalyzer;
@@ -78,7 +79,7 @@ public partial class MainViewModel : ObservableObject
                     NameInfoSourceFile.Clear();
                     foreach (var hyperlink in sourceFiles.Select(sourceFile => new Hyperlink { Inlines = { new Run { Text = sourceFile } } }))
                     {
-                        hyperlink.Click += (sender, _) => Utilities.OpenFileOrFolder(sender.Inlines[0].To<Run>().Text);
+                        hyperlink.Click += (sender, _) => PathTool.OpenFileOrFolderInShell(sender.Inlines[0].To<Run>().Text);
                         NameInfoSourceFile.Add(hyperlink);
                         NameInfoSourceFile.Add(new LineBreak());
                     }

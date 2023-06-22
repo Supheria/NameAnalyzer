@@ -2,8 +2,9 @@ using System;
 using System.IO;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
-using Windows.Storage;
 using Parser.Helper;
+using Utilities;
+using Windows.Storage;
 using WinUI3Utilities;
 
 namespace NameAnalyzer;
@@ -54,7 +55,7 @@ public sealed partial class MainGrid : Grid
 
     private void OpenFileInExplorer(ContentDialog sender, ContentDialogButtonClickEventArgs e)
     {
-        Utilities.OpenFileOrFolder(_logDir);
+        PathTool.OpenFileOrFolderInShell(_logDir);
     }
 
     private void SelectedNameChanged(object sender, SelectionChangedEventArgs e)
