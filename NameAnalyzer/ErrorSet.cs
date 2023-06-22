@@ -28,6 +28,6 @@ public class ErrorSet
         var sb = new StringBuilder();
         foreach (var error in _errors)
             sb.AppendLine(error);
-        return sb.ToString();
+        return sb.ToString().Trim('\n', '\r');
     }
 }

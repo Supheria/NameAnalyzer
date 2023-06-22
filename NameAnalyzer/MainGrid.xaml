@@ -1,0 +1,206 @@
+<Grid
+    x:Class="NameAnalyzer.MainGrid"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:converters="using:NameAnalyzer.Converters"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:helper="using:WinUI3Utilities"
+    xmlns:local="using:NameAnalyzer"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    mc:Ignorable="d">
+    <Grid.Resources>
+        <Thickness x:Key="PropertyNameMargin">4,4</Thickness>
+        <Style x:Key="PropertyName" TargetType="TextBlock">
+            <Setter Property="Margin" Value="{StaticResource PropertyNameMargin}" />
+            <Setter Property="FontSize" Value="14" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+        </Style>
+        <VerticalAlignment x:Key="PropertyValueVerticalAlignment">Center</VerticalAlignment>
+        <Style x:Key="PropertyValueTextBlock" TargetType="TextBlock">
+            <Setter Property="VerticalAlignment" Value="{StaticResource PropertyValueVerticalAlignment}" />
+            <Setter Property="IsTextSelectionEnabled" Value="True" />
+            <Setter Property="TextWrapping" Value="Wrap" />
+            <Setter Property="Margin" Value="{StaticResource PropertyNameMargin}" />
+        </Style>
+        <converters:BoolToSolidColorBrushConverter x:Key="BoolToSolidColorBrushConverter" />
+        <converters:BoolToVisibilityConverter x:Key="BoolToVisibilityConverter" />
+    </Grid.Resources>
+
+    <Grid.RowDefinitions>
+        <!--  自动调整高度  -->
+        <RowDefinition Height="Auto" />
+        <RowDefinition Height="Auto" />
+        <RowDefinition Height="Auto" />
+        <!--  占满剩余高度  -->
+        <RowDefinition Height="*" />
+        <RowDefinition Height="Auto" />
+    </Grid.RowDefinitions>
+    <Grid.ColumnDefinitions>
+        <ColumnDefinition Width="*" />
+        <ColumnDefinition Width="Auto" />
+        <ColumnDefinition Width="Auto" />
+    </Grid.ColumnDefinitions>
+    <Border
+        x:Name="TitleBar"
+        Grid.Row="0"
+        Grid.Column="0"
+        Grid.ColumnSpan="3"
+        Height="32"
+        Margin="10,0"
+        VerticalAlignment="Top"
+        IsHitTestVisible="True">
+        <StackPanel Orientation="Horizontal">
+            <!--  图标，可替换为别的图片  -->
+            <Image
+                Width="16"
+                Height="16"
+                Source="..\Assets\Square44x44Logo.png" />
+            <TextBlock
+                x:Name="TitleTextBlock"
+                Margin="20,0"
+                VerticalAlignment="Center"
+                Style="{StaticResource CaptionTextBlockStyle}"
+                Text="{x:Bind helper:CurrentContext.Title}" />
+        </StackPanel>
+    </Border>
+    <ComboBox
+        Grid.Row="1"
+        Grid.Column="0"
+        Margin="5,0,0,0"
+        VerticalAlignment="Center"
+        ItemsSource="{x:Bind _vm.NamePickerSource, Mode=OneWay}"
+        SelectedIndex="{x:Bind _vm.SelectedNameIndex, Mode=TwoWay}"
+        SelectionChanged="SelectedNameChanged"
+        ToolTipService.ToolTip="Name" />
+    <NumberBox
+        Grid.Row="1"
+        Grid.Column="1"
+        Margin="5,0,0,0"
+        VerticalAlignment="Center"
+        Maximum="{x:Bind _vm.MaxLevel, Mode=OneWay}"
+        Minimum="0"
+        SmallChange="1"
+        SpinButtonPlacementMode="Inline"
+        ToolTipService.ToolTip="Level"
+        Value="{x:Bind _vm.SelectedLevel, Mode=TwoWay}" />
+    <CommandBar
+        Grid.Row="1"
+        Grid.Column="2"
+        OverflowButtonVisibility="Collapsed">
+        <AppBarSeparator />
+        <AppBarButton
+            Icon="OpenFile"
+            Tapped="SelectFileTapped"
+            ToolTipService.ToolTip="打开文件" />
+        <AppBarButton
+            Icon="OpenLocal"
+            Tapped="SelectFolderTapped"
+            ToolTipService.ToolTip="打开文件夹" />
+        <AppBarButton
+            Icon="Important"
+            Tapped="OpenParseExceptionLogTapped"
+            ToolTipService.ToolTip="解析异常日志"
+            Visibility="{x:Bind _vm.ParseExceptionVisibility, Mode=OneWay}" />
+    </CommandBar>
+    <InfoBar
+        Title="错误"
+        Grid.Row="2"
+        Grid.Column="0"
+        Grid.ColumnSpan="3"
+        IsOpen="{x:Bind _vm.ErrorMessageVisibility, Mode=OneWay}"
+        Message="{x:Bind _vm.ErrorMessage, Mode=OneWay}"
+        Severity="Error" />
+    <ScrollViewer
+        Grid.Row="3"
+        Grid.Column="0"
+        Grid.ColumnSpan="3">
+        <ListView ItemsSource="{x:Bind _vm.PropertyNamesSource, Mode=OneWay}" SelectionChanged="SelectedPropertyNameChanged">
+            <ListView.ItemTemplate>
+                <DataTemplate x:DataType="local:SubItem">
+                    <ListViewItem DoubleTapped="ListViewItemOnDoubleTapped" Tag="{x:Bind}">
+                        <StackPanel Orientation="Horizontal">
+                            <SymbolIcon
+                                Margin="0,0,5,0"
+                                Symbol="Important"
+                                Visibility="{x:Bind IsError, Converter={StaticResource BoolToVisibilityConverter}}" />
+                            <TextBlock Text="{x:Bind Name}" />
+                        </StackPanel>
+                        <!--<InfoBadge Style="{StaticResource CriticalIconInfoBadgeStyle}" Visibility="{x:Bind IsError, Converter={StaticResource BoolToVisibilityConverter}}" />-->
+                    </ListViewItem>
+                </DataTemplate>
+            </ListView.ItemTemplate>
+        </ListView>
+    </ScrollViewer>
+    <ScrollViewer
+        Grid.Row="4"
+        Grid.Column="0"
+        Grid.ColumnSpan="3"
+        MaxHeight="500"
+        Visibility="{x:Bind _vm.NameInfoVisibility, Mode=OneWay}">
+        <Grid Margin="10">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
+            <TextBlock
+                Grid.Row="0"
+                Grid.Column="0"
+                Style="{StaticResource PropertyName}"
+                Text="types:" />
+            <TextBlock
+                Grid.Row="1"
+                Grid.Column="0"
+                Style="{StaticResource PropertyName}"
+                Text="property names:" />
+            <TextBlock
+                Grid.Row="2"
+                Grid.Column="0"
+                Style="{StaticResource PropertyName}"
+                Text="values:" />
+            <TextBlock
+                Grid.Row="3"
+                Grid.Column="0"
+                Style="{StaticResource PropertyName}"
+                Text="source files:" />
+            <TextBlock
+                Grid.Row="0"
+                Grid.Column="1"
+                Style="{StaticResource PropertyValueTextBlock}"
+                Text="{x:Bind _vm.NameInfoType, Mode=OneWay}" />
+            <TextBlock
+                Grid.Row="1"
+                Grid.Column="1"
+                Style="{StaticResource PropertyValueTextBlock}"
+                Text="{x:Bind _vm.NameInfoPropertyNames, Mode=OneWay}" />
+            <TextBlock
+                Grid.Row="2"
+                Grid.Column="1"
+                Style="{StaticResource PropertyValueTextBlock}"
+                Text="{x:Bind _vm.NameInfoValue, Mode=OneWay}" />
+            <TextBlock
+                x:Name="TextBlock"
+                Grid.Row="3"
+                Grid.Column="1"
+                Style="{StaticResource PropertyValueTextBlock}" />
+        </Grid>
+    </ScrollViewer>
+    <ContentDialog
+        x:Name="MessageDialog"
+        Title="Parser Occurs Exception"
+        Grid.Row="0"
+        Grid.Column="0"
+        CloseButtonText="Close"
+        PrimaryButtonClick="OpenFileInExplorer"
+        PrimaryButtonText="Open exception log">
+        <ScrollViewer>
+            <TextBlock Text="{x:Bind _vm.MessageDialogText, Mode=OneWay}" />
+        </ScrollViewer>
+    </ContentDialog>
+
+</Grid>

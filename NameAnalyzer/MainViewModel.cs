@@ -1,37 +1,22 @@
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Linq;
-using System.Text;
 using CommunityToolkit.Mvvm.ComponentModel;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
-using Parser.data;
-using Parser.helper;
-using Windows.Foundation.Collections;
+using Microsoft.UI.Xaml.Documents;
+using Parser.Data.TokenTypes;
+using Parser.Helper;
+using WinUI3Utilities;
 
 namespace NameAnalyzer;
 
+public record SubItem(string Name, bool IsError);
+
 public partial class MainViewModel : ObservableObject
 {
+    [ObservableProperty]
     private string _messageDialogText = "";
-
-    public string MessageDialogText
-    {
-        get => _messageDialogText;
-        set
-        {
-            // if (_messageDialogText == value)
-            //   return;
-            _messageDialogText = value;
-            OnPropertyChanged();
-            _messageDialogShow();
-        }
-    }
-
-    private readonly Action _messageDialogShow;
-
-    public MainViewModel(Action messageDialogShow) => _messageDialogShow = messageDialogShow;
 
     private (int Level, string Name) _infoShowing = (-1, "");
 
@@ -60,33 +45,27 @@ public partial class MainViewModel : ObservableObject
                     switch (info.Token)
                     {
                         case Scope scope:
-                            probableType.Add("Scope");
                             foreach (var token in scope.Property)
-                                propertyNames.Add(token.ToString());
+                                _ = propertyNames.Add(token.Name.Text);
                             break;
-                        case TaggedValue taggedValue:
-                            probableType.Add("TaggedValue");
-                            values.Add(taggedValue.ToString());
-                            break;
-                        case ValueArray valueArray:
-                            probableType.Add("ValueArray");
-                            values.Add(valueArray.ToString());
-                            break;
-                        case TagArray tagArray:
-                            probableType.Add("TagArray");
-                            values.Add(tagArray.ToString());
+                        case TaggedValue or ValueArray or TagArray:
+                            _ = values.Add(info.Token.ToString());
                             break;
                         default:
-                            probableType.Add("Token");
                             break;
                     }
 
-                    sourceFiles.Add(info.FilePath);
+                    _ = probableType.Add(info.Token.GetType().Name);
+                    _ = sourceFiles.Add(info.FilePath);
                 }
 
                 if (probableType.Count > 1)
+                {
+                    // TODO
                     ErrorMessage =
-                        ErrorSet.Append($"\n\"{infos[0].Name}\" in level {_infoShowing.Level} has different types.");
+                        ErrorSet.Append($"\"{infos[0].Name}\" in level {_infoShowing.Level} has different types.");
+                    OnPropertyChanged(nameof(ErrorMessageVisibility));
+                }
 
                 if (probableType.Count > 0)
                     NameInfoType = probableType.Aggregate("", (current, s) => current + s + " ");
@@ -95,47 +74,37 @@ public partial class MainViewModel : ObservableObject
                 if (values.Count > 0)
                     NameInfoValue = values.Aggregate("", (current, s) => current + s + "\n");
                 if (sourceFiles.Count > 0)
-                    NameInfoSourceFile = sourceFiles.Aggregate("", (current, s) => current + s + "\n");
+                {
+                    NameInfoSourceFile.Clear();
+                    foreach (var hyperlink in sourceFiles.Select(sourceFile => new Hyperlink { Inlines = { new Run { Text = sourceFile } } }))
+                    {
+                        hyperlink.Click += (sender, _) => Utilities.OpenFileOrFolder(sender.Inlines[0].To<Run>().Text);
+                        NameInfoSourceFile.Add(hyperlink);
+                        NameInfoSourceFile.Add(new LineBreak());
+                    }
+                }
             }
             else
-                NameInfoType = NameInfoPropertyNames = NameInfoValue = NameInfoSourceFile = "";
+            {
+                NameInfoType = NameInfoPropertyNames = NameInfoValue = "";
+                NameInfoSourceFile.Clear();
+            }
             OnPropertyChanged(nameof(NameInfoVisibility));
         }
     }
 
-    public string ParseException
-    {
-        get => _parseException;
-        set
-        {
-            if (value == _parseException)
-                return;
-            _parseException = value;
-            OnPropertyChanged();
-            OnPropertyChanged(nameof(ParseExceptionVisibility));
-            MessageDialogText = value;
-        }
-    }
+    [ObservableProperty] private string _nameInfoType = "";
+    [ObservableProperty] private string _nameInfoPropertyNames = "";
+    [ObservableProperty] private string _nameInfoValue = "";
+    public InlineCollection NameInfoSourceFile { get; set; } = null!;
+    public Visibility NameInfoVisibility => NameInfoType + NameInfoPropertyNames + NameInfoValue is "" && NameInfoSourceFile.Count is 0 ? Visibility.Collapsed : Visibility.Visible;
 
-    private string _parseException = "";
+    public Visibility ParseExceptionVisibility => MessageDialogText is "" ? Visibility.Collapsed : Visibility.Visible;
 
-    public Visibility ParseExceptionVisibility => ParseException is "" ? Visibility.Collapsed : Visibility.Visible;
-
-    public string ErrorMessage
-    {
-        get => _errorMessage;
-        set
-        {
-            if (value == _errorMessage)
-                return;
-            _errorMessage = value;
-            OnPropertyChanged();
-            OnPropertyChanged(nameof(ErrorMessageVisibility));
-            MessageDialogText = value;
-        }
-    }
+    [ObservableProperty]
     private string _errorMessage = "";
-    public Visibility ErrorMessageVisibility => ErrorMessage is "" ? Visibility.Collapsed : Visibility.Visible;
+
+    public bool ErrorMessageVisibility => ErrorMessage is not "";
 
     /// <summary>
     /// 最大的Level值，即<see cref="NumberBox"/>LevelPicker最大值
@@ -161,13 +130,6 @@ public partial class MainViewModel : ObservableObject
             SelectedNameIndex = 0;
         }
     }
-
-    [ObservableProperty] private string _nameInfoType = "";
-    [ObservableProperty] private string _nameInfoPropertyNames = "";
-    [ObservableProperty] private string _nameInfoValue = "";
-    [ObservableProperty] private string _nameInfoSourceFile = "";
-    public Visibility NameInfoVisibility => string.IsNullOrEmpty(NameInfoType + NameInfoPropertyNames + NameInfoValue + NameInfoSourceFile) ? Visibility.Collapsed : Visibility.Visible;
-
     /// <summary>
     /// <see cref="NumberBox"/>LevelPicker正选择的项
     /// </summary>
@@ -225,25 +187,33 @@ public partial class MainViewModel : ObservableObject
     /// <summary>
     /// 给显示Scope.Property的<see cref="ListView"/>用
     /// </summary>
-    public IEnumerable<string> PropertyNamesSource
+    public IEnumerable<SubItem> PropertyNamesSource
     {
         get
         {
             if (SelectedNameIndex is -1 || SelectedNameIndex > NamePickerSource.Count)
-                return Array.Empty<string>();
+                return Array.Empty<SubItem>();
 
             var infoList = NameDictionary[NamePickerSource[SelectedNameIndex]];
-            var propertyNames = new HashSet<string>();
+            var propertyNames = new Dictionary<string, Token?>();
             foreach (var info in infoList)
             {
                 if (info.Token is not Scope scope)
                     continue;
                 foreach (var property in scope.Property)
                 {
-                    _ = propertyNames.Add(property.ToString());
+                    var name = property.Name.Text;
+                    if (propertyNames.TryGetValue(name, out var token))
+                    {
+                        if (token?.GetType() != property.GetType())
+                            // 为null时表示几处定义类型不一样
+                            propertyNames[name] = null;
+                    }
+                    else
+                        _ = propertyNames[name] = property;
                 }
             }
-            return propertyNames;
+            return propertyNames.Select(t => new SubItem(t.Key, t.Value is null));
         }
     }
 
