@@ -1,7 +1,4 @@
-using System;
-using System.IO;
 using Microsoft.UI.Xaml;
-using Windows.Storage;
 using WinUI3Utilities;
 
 namespace NameAnalyzer;
