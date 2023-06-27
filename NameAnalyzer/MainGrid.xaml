@@ -7,23 +7,25 @@
     xmlns:helper="using:WinUI3Utilities"
     xmlns:local="using:NameAnalyzer"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:system="using:System"
     mc:Ignorable="d">
     <Grid.Resources>
         <Thickness x:Key="PropertyNameMargin">4,4</Thickness>
-        <Style x:Key="PropertyName" TargetType="TextBlock">
+        <converters:StringIsNotEmptyToBoolConverter x:Key="StringIsNotEmptyToBoolConverter" />
+        <converters:BoolToVisibilityConverter x:Key="BoolToVisibilityConverter" />
+        <converters:StringIsNotEmptyToVisibilityConverter x:Key="StringIsNotEmptyToVisibilityConverter" />
+        <converters:NameInfoLabelTypeToString x:Key="NameInfoLabelTypeToString" />
+        <Style x:Key="NameInfoLabelStyle" TargetType="TextBlock">
             <Setter Property="Margin" Value="{StaticResource PropertyNameMargin}" />
             <Setter Property="FontSize" Value="14" />
             <Setter Property="FontWeight" Value="SemiBold" />
         </Style>
-        <VerticalAlignment x:Key="PropertyValueVerticalAlignment">Center</VerticalAlignment>
-        <Style x:Key="PropertyValueTextBlock" TargetType="TextBlock">
-            <Setter Property="VerticalAlignment" Value="{StaticResource PropertyValueVerticalAlignment}" />
+        <Style x:Key="NameInfoBlockStyle" TargetType="TextBlock">
+            <Setter Property="VerticalAlignment" Value="Center" />
             <Setter Property="IsTextSelectionEnabled" Value="True" />
             <Setter Property="TextWrapping" Value="Wrap" />
             <Setter Property="Margin" Value="{StaticResource PropertyNameMargin}" />
         </Style>
-        <converters:BoolToSolidColorBrushConverter x:Key="BoolToSolidColorBrushConverter" />
-        <converters:BoolToVisibilityConverter x:Key="BoolToVisibilityConverter" />
     </Grid.Resources>
 
     <Grid.RowDefinitions>
@@ -33,7 +35,7 @@
         <RowDefinition Height="Auto" />
         <!--  占满剩余高度  -->
         <RowDefinition Height="*" />
-        <RowDefinition Height="Auto" />
+        <RowDefinition Height="400" />
     </Grid.RowDefinitions>
     <Grid.ColumnDefinitions>
         <ColumnDefinition Width="*" />
@@ -77,8 +79,8 @@
         Grid.Column="1"
         Margin="5,0,0,0"
         VerticalAlignment="Center"
+        Minimum="{x:Bind _vm.MinLevel, Mode=OneWay}"
         Maximum="{x:Bind _vm.MaxLevel, Mode=OneWay}"
-        Minimum="0"
         SmallChange="1"
         SpinButtonPlacementMode="Inline"
         ToolTipService.ToolTip="Level"
@@ -100,14 +102,14 @@
             Icon="Important"
             Tapped="OpenParseExceptionLogTapped"
             ToolTipService.ToolTip="解析异常日志"
-            Visibility="{x:Bind _vm.ParseExceptionVisibility, Mode=OneWay}" />
+            Visibility="{x:Bind _vm.MessageDialogText, Mode=OneWay, Converter={StaticResource StringIsNotEmptyToVisibilityConverter}}" />
     </CommandBar>
     <InfoBar
         Title="错误"
         Grid.Row="2"
         Grid.Column="0"
         Grid.ColumnSpan="3"
-        IsOpen="{x:Bind _vm.ErrorMessageVisibility, Mode=OneWay}"
+        IsOpen="{x:Bind _vm.ErrorMessage, Mode=OneWay, Converter={StaticResource StringIsNotEmptyToBoolConverter}}"
         Message="{x:Bind _vm.ErrorMessage, Mode=OneWay}"
         Severity="Error" />
     <ScrollViewer
@@ -116,7 +118,7 @@
         Grid.ColumnSpan="3">
         <ListView ItemsSource="{x:Bind _vm.PropertyNamesSource, Mode=OneWay}" SelectionChanged="SelectedPropertyNameChanged">
             <ListView.ItemTemplate>
-                <DataTemplate x:DataType="local:SubItem">
+                <DataTemplate x:DataType="local:NameCorrectness">
                     <ListViewItem DoubleTapped="ListViewItemOnDoubleTapped" Tag="{x:Bind}">
                         <StackPanel Orientation="Horizontal">
                             <SymbolIcon
@@ -125,71 +127,33 @@
                                 Visibility="{x:Bind IsError, Converter={StaticResource BoolToVisibilityConverter}}" />
                             <TextBlock Text="{x:Bind Name}" />
                         </StackPanel>
-                        <!--<InfoBadge Style="{StaticResource CriticalIconInfoBadgeStyle}" Visibility="{x:Bind IsError, Converter={StaticResource BoolToVisibilityConverter}}" />-->
                     </ListViewItem>
                 </DataTemplate>
             </ListView.ItemTemplate>
         </ListView>
     </ScrollViewer>
-    <ScrollViewer
+    <NavigationView
         Grid.Row="4"
         Grid.Column="0"
         Grid.ColumnSpan="3"
-        MaxHeight="500"
-        Visibility="{x:Bind _vm.NameInfoVisibility, Mode=OneWay}">
-        <Grid Margin="10">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="Auto" />
-                <ColumnDefinition Width="*" />
-            </Grid.ColumnDefinitions>
-            <Grid.RowDefinitions>
-                <RowDefinition Height="Auto" />
-                <RowDefinition Height="Auto" />
-                <RowDefinition Height="Auto" />
-                <RowDefinition Height="Auto" />
-            </Grid.RowDefinitions>
+        CompactPaneLength="0"
+        IsBackButtonVisible="Collapsed"
+        IsSettingsVisible="False"
+        MenuItemsSource="{x:Bind _vm.NameInfoLabelsSource, Mode=OneWay}"
+        PaneDisplayMode="Top"
+        SelectedItem="{x:Bind _vm.SelectedNameInfoLabel, Mode=TwoWay}">
+        <NavigationView.MenuItemTemplate>
+            <DataTemplate x:DataType="local:NameInfoLabel">
+                <TextBlock Style="{StaticResource NameInfoLabelStyle}" Text="{x:Bind Type, Converter={StaticResource NameInfoLabelTypeToString}}" />
+            </DataTemplate>
+        </NavigationView.MenuItemTemplate>
+        <ScrollViewer Padding="20">
             <TextBlock
-                Grid.Row="0"
-                Grid.Column="0"
-                Style="{StaticResource PropertyName}"
-                Text="types:" />
-            <TextBlock
-                Grid.Row="1"
-                Grid.Column="0"
-                Style="{StaticResource PropertyName}"
-                Text="property names:" />
-            <TextBlock
-                Grid.Row="2"
-                Grid.Column="0"
-                Style="{StaticResource PropertyName}"
-                Text="values:" />
-            <TextBlock
-                Grid.Row="3"
-                Grid.Column="0"
-                Style="{StaticResource PropertyName}"
-                Text="source files:" />
-            <TextBlock
-                Grid.Row="0"
-                Grid.Column="1"
-                Style="{StaticResource PropertyValueTextBlock}"
-                Text="{x:Bind _vm.NameInfoType, Mode=OneWay}" />
-            <TextBlock
-                Grid.Row="1"
-                Grid.Column="1"
-                Style="{StaticResource PropertyValueTextBlock}"
-                Text="{x:Bind _vm.NameInfoPropertyNames, Mode=OneWay}" />
-            <TextBlock
-                Grid.Row="2"
-                Grid.Column="1"
-                Style="{StaticResource PropertyValueTextBlock}"
-                Text="{x:Bind _vm.NameInfoValue, Mode=OneWay}" />
-            <TextBlock
-                x:Name="TextBlock"
-                Grid.Row="3"
-                Grid.Column="1"
-                Style="{StaticResource PropertyValueTextBlock}" />
-        </Grid>
-    </ScrollViewer>
+                x:Name="NameInfoBlock"
+                VerticalAlignment="Top"
+                Style="{StaticResource NameInfoBlockStyle}" />
+        </ScrollViewer>
+    </NavigationView>
     <ContentDialog
         x:Name="MessageDialog"
         Title="Parser Occurs Exception"
@@ -202,5 +166,4 @@
             <TextBlock Text="{x:Bind _vm.MessageDialogText, Mode=OneWay}" />
         </ScrollViewer>
     </ContentDialog>
-
 </Grid>

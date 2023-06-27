@@ -5,10 +5,10 @@ using WinUI3Utilities;
 
 namespace NameAnalyzer.Converters;
 
-public class BoolToVisibilityConverter : IValueConverter
+public class StringIsNotEmptyToVisibilityConverter : IValueConverter
 {
     public object Convert(object value, Type targetType, object parameter, string language) =>
-        value.To<bool>() ? Visibility.Visible : Visibility.Collapsed;
+        !string.IsNullOrEmpty(value.To<string>()) ? Visibility.Visible : Visibility.Collapsed;
 
     public object ConvertBack(object value, Type targetType, object parameter, string language) =>
         throw new NotImplementedException();
