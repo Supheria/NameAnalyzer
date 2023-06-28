@@ -73,14 +73,26 @@
         ItemsSource="{x:Bind _vm.NamePickerSource, Mode=OneWay}"
         SelectedIndex="{x:Bind _vm.SelectedNameIndex, Mode=TwoWay}"
         SelectionChanged="SelectedNameChanged"
-        ToolTipService.ToolTip="Name" />
+        ToolTipService.ToolTip="Name">
+        <ComboBox.ItemTemplate>
+            <DataTemplate x:DataType="local:NameItem">
+                <StackPanel Orientation="Horizontal">
+                    <SymbolIcon
+                        Margin="0,0,5,0"
+                        Symbol="Important"
+                        Visibility="{x:Bind IsError, Converter={StaticResource BoolToVisibilityConverter}}" />
+                    <TextBlock Text="{x:Bind Name}" />
+                </StackPanel>
+            </DataTemplate>
+        </ComboBox.ItemTemplate>
+    </ComboBox>
     <NumberBox
         Grid.Row="1"
         Grid.Column="1"
         Margin="5,0,0,0"
         VerticalAlignment="Center"
-        Minimum="{x:Bind _vm.MinLevel, Mode=OneWay}"
         Maximum="{x:Bind _vm.MaxLevel, Mode=OneWay}"
+        Minimum="{x:Bind _vm.MinLevel, Mode=OneWay}"
         SmallChange="1"
         SpinButtonPlacementMode="Inline"
         ToolTipService.ToolTip="Level"
@@ -118,7 +130,7 @@
         Grid.ColumnSpan="3">
         <ListView ItemsSource="{x:Bind _vm.PropertyNamesSource, Mode=OneWay}" SelectionChanged="SelectedPropertyNameChanged">
             <ListView.ItemTemplate>
-                <DataTemplate x:DataType="local:NameCorrectness">
+                <DataTemplate x:DataType="local:NameItem">
                     <ListViewItem DoubleTapped="ListViewItemOnDoubleTapped" Tag="{x:Bind}">
                         <StackPanel Orientation="Horizontal">
                             <SymbolIcon
@@ -132,28 +144,38 @@
             </ListView.ItemTemplate>
         </ListView>
     </ScrollViewer>
-    <NavigationView
+    <Grid
         Grid.Row="4"
         Grid.Column="0"
-        Grid.ColumnSpan="3"
-        CompactPaneLength="0"
-        IsBackButtonVisible="Collapsed"
-        IsSettingsVisible="False"
-        MenuItemsSource="{x:Bind _vm.NameInfoLabelsSource, Mode=OneWay}"
-        PaneDisplayMode="Top"
-        SelectedItem="{x:Bind _vm.SelectedNameInfoLabel, Mode=TwoWay}">
-        <NavigationView.MenuItemTemplate>
-            <DataTemplate x:DataType="local:NameInfoLabel">
-                <TextBlock Style="{StaticResource NameInfoLabelStyle}" Text="{x:Bind Type, Converter={StaticResource NameInfoLabelTypeToString}}" />
-            </DataTemplate>
-        </NavigationView.MenuItemTemplate>
-        <ScrollViewer Padding="20">
-            <TextBlock
-                x:Name="NameInfoBlock"
-                VerticalAlignment="Top"
-                Style="{StaticResource NameInfoBlockStyle}" />
-        </ScrollViewer>
-    </NavigationView>
+        Grid.ColumnSpan="3">
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="Auto" />
+            <ColumnDefinition Width="*" />
+        </Grid.ColumnDefinitions>
+        <TextBlock
+            Style="{StaticResource NameInfoBlockStyle}"
+            Text="sdgdsgsggg"/>
+        <NavigationView
+            Grid.Column="1"
+            CompactPaneLength="0"
+            IsBackButtonVisible="Collapsed"
+            IsSettingsVisible="False"
+            MenuItemsSource="{x:Bind _vm.NameInfoLabelsSource, Mode=OneWay}"
+            PaneDisplayMode="Top"
+            SelectedItem="{x:Bind _vm.SelectedNameInfoLabel, Mode=TwoWay}">
+            <NavigationView.MenuItemTemplate>
+                <DataTemplate x:DataType="local:NameInfoLabel">
+                    <TextBlock Style="{StaticResource NameInfoLabelStyle}" Text="{x:Bind Type, Converter={StaticResource NameInfoLabelTypeToString}}" />
+                </DataTemplate>
+            </NavigationView.MenuItemTemplate>
+            <ScrollViewer Padding="20">
+                <TextBlock
+                    x:Name="NameInfoBlock"
+                    VerticalAlignment="Top"
+                    Style="{StaticResource NameInfoBlockStyle}" />
+            </ScrollViewer>
+        </NavigationView>
+    </Grid>
     <ContentDialog
         x:Name="MessageDialog"
         Title="Parser Occurs Exception"

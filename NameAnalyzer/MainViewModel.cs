@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection.Emit;
+using Windows.Management.Policies;
 using ABI.System.Collections.Generic;
 using CommunityToolkit.Mvvm.ComponentModel;
 using Microsoft.UI.Xaml.Controls;
@@ -10,12 +11,11 @@ using Parser.Data.TokenTypes;
 using Parser.Helper;
 using Utilities;
 using WinUI3Utilities;
+using System.Xml.Linq;
 
 namespace NameAnalyzer;
 
-public record NameCorrectness(string Name, bool IsError);
-
-public record NameOnLevel(string Name, int Level);
+public record NameItem(int Level, string Name, bool IsError);
 
 public record NameInfoLabel(NameInfoLabelType Type);
 
@@ -42,23 +42,24 @@ public partial class MainViewModel : ObservableObject
 
     public ErrorSet ErrorSet { get; private set; } = new();
 
-    public NameOnLevel NameInfoToShow
+    public InlineCollection NameInfoBlockSource { get; set; } = null!;
+
+    public NameItem SelectedName
     {
-        get => _nameInfoToShow;
+        get => _selectedName;
         set
         {
-            if (_nameInfoToShow == value)
+            if (value == _selectedName)
                 return;
-            NameInfoBlocks = new();
-            if (value.Level is -1)
-                return;
-
-            _nameInfoToShow = value;
+            _selectedName = value;
             OnPropertyChanged();
 
-            var infos = LevelMap[(uint)_nameInfoToShow.Level][_nameInfoToShow.Name].ToArray();
-
-            if (infos.Length is not 0)
+            NameInfoBlocks = new();
+            if (!LevelMap.TryGetValue((uint)value.Level, out var names))
+                return;
+            if (!names.TryGetValue(value.Name, out var infos))
+                return;
+            if (infos.Count is not 0)
             {
                 NameInfoBlocks = new()
                 {
@@ -89,47 +90,51 @@ public partial class MainViewModel : ObservableObject
                 }
 
                 if (NameInfoBlocks[NameInfoLabelType.Type].Count > 1)
-                    ErrorMessage = ErrorSet.Append($"\"{infos[0].Name}\" in level {_nameInfoToShow.Level} has different types.");
+                    ErrorMessage = ErrorSet.Append($"\"{infos[0].Name}\" in level {value.Level} has different types.");
             }
 
             OnPropertyChanged(nameof(NameInfoLabelsSource));
-            if(SelectedNameInfoLabel!.Type is NameInfoLabelType.None)
+            if (SelectedNameInfoLabel!.Type is NameInfoLabelType.None)
                 SelectedNameInfoLabel = new(NameInfoLabelType.Type);
             OnPropertyChanged(nameof(SelectedNameInfoLabel));
+            SetNameInfoBlockSource();
         }
     }
-
-    public InlineCollection NameInfoBlockSource { get; set; } = null!;
 
     public NameInfoLabel? SelectedNameInfoLabel
     {
         get => _selectedNameInfoLabel;
         set
         {
-            NameInfoBlockSource.Clear();
-
-            if (value is null || value.Type is NameInfoLabelType.None || !NameInfoBlocks.ContainsKey(value.Type))
+            if (value is null)
                 return;
-
             _selectedNameInfoLabel = value;
+            OnPropertyChanged();
+            SetNameInfoBlockSource();
+        }
+    }
 
-            foreach (var run in NameInfoBlocks[_selectedNameInfoLabel.Type].Select(text =>
-                         new Run { Text = text }))
+    private void SetNameInfoBlockSource()
+    {
+        NameInfoBlockSource.Clear();
+        if (!NameInfoBlocks.TryGetValue(SelectedNameInfoLabel!.Type, out var labels))
+            return;
+        foreach (var run in labels.Select(text =>
+                     new Run { Text = text }))
+        {
+            if (SelectedNameInfoLabel.Type is NameInfoLabelType.SourceFile)
             {
-                if (_selectedNameInfoLabel.Type is NameInfoLabelType.SourceFile)
-                {
-                    var hyperlink = new Hyperlink { Inlines = { run } };
-                    hyperlink.Click += (s, _) => PathTool.OpenFileOrFolderInShell(s.Inlines[0].To<Run>().Text);
-                    NameInfoBlockSource.Add(hyperlink);
-                    NameInfoBlockSource.Add(new LineBreak());
-                    NameInfoBlockSource.Add(new LineBreak());
-                }
-                else
-                {
-                    NameInfoBlockSource.Add(run);
-                    NameInfoBlockSource.Add(new LineBreak());
-                    NameInfoBlockSource.Add(new LineBreak());
-                }
+                var hyperlink = new Hyperlink { Inlines = { run } };
+                hyperlink.Click += (s, _) => PathTool.OpenFileOrFolderInShell(s.Inlines[0].To<Run>().Text);
+                NameInfoBlockSource.Add(hyperlink);
+                NameInfoBlockSource.Add(new LineBreak());
+                NameInfoBlockSource.Add(new LineBreak());
+            }
+            else
+            {
+                NameInfoBlockSource.Add(run);
+                NameInfoBlockSource.Add(new LineBreak());
+                NameInfoBlockSource.Add(new LineBreak());
             }
         }
     }
@@ -197,12 +202,12 @@ public partial class MainViewModel : ObservableObject
     {
         if (SelectedLevel is -1 || SelectedNameIndex is -1)
             return;
-        NameInfoToShow = new(NamePickerSource[SelectedNameIndex], SelectedLevel);
+        SelectedName = NamePickerSource[SelectedNameIndex];
     }
 
-    public void SetPropertyNameInfo(string propertyName)
+    public void SetPropertyNameInfo(NameItem propertyNameItem)
     {
-        NameInfoToShow = new(propertyName, SelectedLevel + 1);
+        SelectedName = propertyNameItem;
     }
 
     /// <summary>
@@ -210,70 +215,73 @@ public partial class MainViewModel : ObservableObject
     /// </summary>
     public Dictionary<string, List<TokenInfo>> NameDictionary => LevelMap.TryGetValue((uint)SelectedLevel, out var value) ? value : new ();
 
+    private List<NameItem> GetNameList(int level)
+    {
+        if (!LevelMap.TryGetValue((uint)level, out var nameList))
+            return new();
+        var names = new Dictionary<string, Token?>();
+        foreach (var name in nameList)
+        {
+            foreach (var info in name.Value)
+            {
+                if (names.TryGetValue(name.Key, out var token))
+                {
+                    if (token?.GetType() != info.Token.GetType())
+                        // 为null时表示几处定义类型不一样
+                        names[name.Key] = null;
+                }
+                else
+                    _ = names[name.Key] = info.Token;
+            }
+        }
+        return names.Select(t => new NameItem(level, t.Key, t.Value is null)).ToList();
+    }
 
     /// <summary>
     /// 给NamePicker的<see cref="ComboBox"/>用
     /// </summary>
-    public List<string> NamePickerSource => NameDictionary.Keys.ToList();
+    public List<NameItem> NamePickerSource => GetNameList(SelectedLevel);
 
     /// <summary>
     /// 给显示Scope.Property的<see cref="ListView"/>用
     /// </summary>
-    public NameCorrectness[] PropertyNamesSource
+    public List<NameItem> PropertyNamesSource
     {
         get
         {
             if (SelectedNameIndex >= NamePickerSource.Count)
-                return Array.Empty<NameCorrectness>();
+                return new();
 
             var propertyNames = new Dictionary<string, Token?>();
             if (SelectedLevel is -1)
+                return GetNameList(0);
+            if (SelectedNameIndex is -1)
+                return new();
+            foreach (var info in NameDictionary[NamePickerSource[SelectedNameIndex].Name])
             {
-                foreach (var name in LevelMap[0])
+                if (info.Token is not Scope scope)
+                    continue;
+                foreach (var property in scope.Property)
                 {
-                    foreach (var info in name.Value)
+                    var name = property.Name.Text;
+                    if (propertyNames.TryGetValue(name, out var token))
                     {
-                        if (propertyNames.TryGetValue(name.Key, out var token))
-                        {
-                            if (token?.GetType() != info.Token.GetType())
-                                // 为null时表示几处定义类型不一样
-                                propertyNames[name.Key] = null;
-                        }
-                        else
-                            _ = propertyNames[name.Key] = info.Token;
+                        if (token?.GetType() != property.GetType())
+                            // 为null时表示几处定义类型不一样
+                            propertyNames[name] = null;
                     }
-                }
-            }
-            else
-            {
-                if (SelectedNameIndex is -1)
-                    return Array.Empty<NameCorrectness>();
-                foreach (var info in NameDictionary[NamePickerSource[SelectedNameIndex]])
-                {
-                    if (info.Token is not Scope scope)
-                        continue;
-                    foreach (var property in scope.Property)
-                    {
-                        var name = property.Name.Text;
-                        if (propertyNames.TryGetValue(name, out var token))
-                        {
-                            if (token?.GetType() != property.GetType())
-                                // 为null时表示几处定义类型不一样
-                                propertyNames[name] = null;
-                        }
-                        else
-                            _ = propertyNames[name] = property;
-                    }
+                    else
+                        _ = propertyNames[name] = property;
                 }
             }
 
-            return propertyNames.Select(t => new NameCorrectness(t.Key, t.Value is null)).ToArray();
+            return propertyNames.Select(t => new NameItem(0, t.Key, t.Value is null)).ToList();
         }
     }
 
-    private NameOnLevel _nameInfoToShow = new("", -1);
     private int _selectedLevel;
     private int _selectedNameIndex;
+    private NameItem _selectedName = new(-1, "", false);
     private NameInfoLabel _selectedNameInfoLabel = new(NameInfoLabelType.None);
     private Dictionary<uint, Dictionary<string, List<TokenInfo>>> _levelMap = new();
 }

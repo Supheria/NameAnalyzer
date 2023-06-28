@@ -71,38 +71,12 @@ public sealed partial class MainGrid : Grid
         if (propertyNames.SelectedIndex is -1)
             _vm.SetNameInfo();
         else
-            _vm.SetPropertyNameInfo(propertyNames.SelectedValue.To<NameCorrectness>().Name);
+            _vm.SetPropertyNameInfo(propertyNames.SelectedValue.To<NameItem>());
     }
 
     private void ListViewItemOnDoubleTapped(object sender, DoubleTappedRoutedEventArgs e)
     {
         _vm.SelectedLevel += 1;
-        _vm.SelectedNameIndex = _vm.NamePickerSource.IndexOf(sender.To<ListViewItem>().GetTag<NameCorrectness>().Name);
-    }
-
-    private void SelectedNameInfoLabelChanged(NavigationView sender, NavigationViewItemInvokedEventArgs e)
-    {
-        var label = sender.SelectedItem.To<NameInfoLabel>();
-        var infoBlock = NameInfoBlock.Inlines;
-        infoBlock.Clear();
-
-        foreach (var run in _vm.NameInfoBlocks[label.Type].Select(text =>
-                     new Run { Text = text }))
-        {
-            if (label.Type is NameInfoLabelType.SourceFile)
-            {
-                var hyperlink = new Hyperlink { Inlines = { run } };
-                hyperlink.Click += (s, _) => PathTool.OpenFileOrFolderInShell(s.Inlines[0].To<Run>().Text);
-                infoBlock.Add(hyperlink);
-                infoBlock.Add(new LineBreak());
-                infoBlock.Add(new LineBreak());
-            }
-            else
-            {
-                infoBlock.Add(run);
-                infoBlock.Add(new LineBreak());
-                infoBlock.Add(new LineBreak());
-            }
-        }
+        _vm.SelectedNameIndex = _vm.NamePickerSource.IndexOf(sender.To<ListViewItem>().GetTag<NameItem>());
     }
 }
