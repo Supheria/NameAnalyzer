@@ -1,12 +1,11 @@
 using System;
 using System.IO;
-using System.Linq;
 using Microsoft.UI.Xaml.Controls;
-using Microsoft.UI.Xaml.Documents;
 using Microsoft.UI.Xaml.Input;
 using Parser.Helper;
 using Utilities;
 using Windows.Storage;
+using Microsoft.UI.Xaml;
 using WinUI3Utilities;
 
 namespace NameAnalyzer;
@@ -22,7 +21,8 @@ public sealed partial class MainGrid : Grid
     }
     private readonly MainViewModel _vm = new();
 
-    private readonly string _logDir = Path.Combine(ApplicationData.Current.LocalCacheFolder.Path, "hoi4 script parse exception.txt");
+    private readonly string _parsingLogDir = Path.Combine(ApplicationData.Current.LocalCacheFolder.Path, "hoi4 script parse exception.txt");
+    private readonly string _warningLogDir = Path.Combine(ApplicationData.Current.LocalCacheFolder.Path, "hoi4 script parse exception.txt");
 
     private async void SelectFileTapped(object sender, TappedRoutedEventArgs e)
     {
@@ -45,7 +45,7 @@ public sealed partial class MainGrid : Grid
     private async void TryShowExceptions(string errorLog)
     {
         _vm.MessageDialogText = errorLog;
-        await File.WriteAllTextAsync(_logDir, errorLog);
+        await File.WriteAllTextAsync(_parsingLogDir, errorLog);
         if (errorLog is not "")
             _ = await MessageDialog.ShowAsync();
     }
@@ -55,28 +55,14 @@ public sealed partial class MainGrid : Grid
         _ = await MessageDialog.ShowAsync();
     }
 
-    private void OpenFileInExplorer(ContentDialog sender, ContentDialogButtonClickEventArgs e)
+    private void OpenParsingLogInExplorer(ContentDialog sender, ContentDialogButtonClickEventArgs e)
     {
-        PathTool.OpenFileOrFolderInShell(_logDir);
+        PathTool.OpenFileOrFolderInShell(_parsingLogDir);
     }
 
-    private void SelectedNameChanged(object sender, SelectionChangedEventArgs e)
+    private async void InfoBarButtonTapped(object sender, RoutedEventArgs e)
     {
-        _vm.SetNameInfo();
-    }
-
-    private void SelectedPropertyNameChanged(object sender, SelectionChangedEventArgs e)
-    {
-        var propertyNames = sender.To<ListView>();
-        if (propertyNames.SelectedIndex is -1)
-            _vm.SetNameInfo();
-        else
-            _vm.SetPropertyNameInfo(propertyNames.SelectedValue.To<NameItem>());
-    }
-
-    private void ListViewItemOnDoubleTapped(object sender, DoubleTappedRoutedEventArgs e)
-    {
-        _vm.SelectedLevel += 1;
-        _vm.SelectedNameIndex = _vm.NamePickerSource.IndexOf(sender.To<ListViewItem>().GetTag<NameItem>());
+        await File.WriteAllTextAsync(_warningLogDir, _vm.WarningMessage);
+        PathTool.OpenFileOrFolderInShell(_warningLogDir);
     }
 }
