@@ -1,5 +1,4 @@
 using System;
-using System.Diagnostics;
 using System.Threading.Tasks;
 using Microsoft.UI.Xaml;
 using WinUI3Utilities;
@@ -29,7 +28,7 @@ public partial class App : Application
 
     private Task UnhandledExceptionHandler(Exception arg)
     {
-        
+
         return Task.CompletedTask;
     }
 }

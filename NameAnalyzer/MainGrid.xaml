@@ -14,7 +14,7 @@
         <converters:StringIsNotEmptyToBoolConverter x:Key="StringIsNotEmptyToBoolConverter" />
         <converters:BoolToVisibilityConverter x:Key="BoolToVisibilityConverter" />
         <converters:StringIsNotEmptyToVisibilityConverter x:Key="StringIsNotEmptyToVisibilityConverter" />
-        <converters:NameInfoLabelTypeToString x:Key="NameInfoLabelTypeToString" />
+        <converters:NameInfoLabelTypeToStringConverter x:Key="NameInfoLabelTypeToStringConverter" />
         <Style x:Key="NameInfoLabelStyle" TargetType="TextBlock">
             <Setter Property="Margin" Value="{StaticResource PropertyNameMargin}" />
             <Setter Property="FontSize" Value="14" />
@@ -25,6 +25,12 @@
             <Setter Property="IsTextSelectionEnabled" Value="True" />
             <Setter Property="TextWrapping" Value="Wrap" />
             <Setter Property="Margin" Value="{StaticResource PropertyNameMargin}" />
+        </Style>
+        <Style x:Key="SelectedLabelBlockStyle" TargetType="TextBlock">
+            <Setter Property="Margin" Value="{StaticResource PropertyNameMargin}" />
+            <Setter Property="TextAlignment" Value="Center" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+            <Setter Property="FontSize" Value="14" />
         </Style>
     </Grid.Resources>
 
@@ -65,22 +71,13 @@
                 Text="{x:Bind helper:CurrentContext.Title}" />
         </StackPanel>
     </Border>
-    <ComboBox
-        Grid.Row="1"
-        Grid.Column="0"
-        Margin="5,0,0,0"
-        VerticalAlignment="Center"
-        ItemsSource="{x:Bind _vm.NamePickerSource, Mode=OneWay}"
-        SelectedIndex="{x:Bind _vm.SelectedNameIndex, Mode=TwoWay}"
-        SelectionChanged="SelectedNameChanged"
-        ToolTipService.ToolTip="Name" />
     <NumberBox
         Grid.Row="1"
         Grid.Column="1"
         Margin="5,0,0,0"
         VerticalAlignment="Center"
-        Minimum="{x:Bind _vm.MinLevel, Mode=OneWay}"
         Maximum="{x:Bind _vm.MaxLevel, Mode=OneWay}"
+        Minimum="0"
         SmallChange="1"
         SpinButtonPlacementMode="Inline"
         ToolTipService.ToolTip="Level"
@@ -104,66 +101,76 @@
             ToolTipService.ToolTip="解析异常日志"
             Visibility="{x:Bind _vm.MessageDialogText, Mode=OneWay, Converter={StaticResource StringIsNotEmptyToVisibilityConverter}}" />
     </CommandBar>
-    <InfoBar
-        Title="错误"
-        Grid.Row="2"
-        Grid.Column="0"
-        Grid.ColumnSpan="3"
-        IsOpen="{x:Bind _vm.ErrorMessage, Mode=OneWay, Converter={StaticResource StringIsNotEmptyToBoolConverter}}"
-        Message="{x:Bind _vm.ErrorMessage, Mode=OneWay}"
-        Severity="Error" />
     <ScrollViewer
         Grid.Row="3"
         Grid.Column="0"
         Grid.ColumnSpan="3">
-        <ListView ItemsSource="{x:Bind _vm.PropertyNamesSource, Mode=OneWay}" SelectionChanged="SelectedPropertyNameChanged">
+        <ListView ItemsSource="{x:Bind _vm.NameListSource, Mode=OneWay}" SelectedIndex="{x:Bind _vm.SelectedNameIndex, Mode=TwoWay}">
             <ListView.ItemTemplate>
-                <DataTemplate x:DataType="local:NameCorrectness">
-                    <ListViewItem DoubleTapped="ListViewItemOnDoubleTapped" Tag="{x:Bind}">
-                        <StackPanel Orientation="Horizontal">
-                            <SymbolIcon
-                                Margin="0,0,5,0"
-                                Symbol="Important"
-                                Visibility="{x:Bind IsError, Converter={StaticResource BoolToVisibilityConverter}}" />
-                            <TextBlock Text="{x:Bind Name}" />
-                        </StackPanel>
-                    </ListViewItem>
+                <DataTemplate x:DataType="local:NameItem">
+                    <StackPanel Orientation="Horizontal">
+                        <SymbolIcon
+                            Margin="0,0,5,0"
+                            Symbol="Important"
+                            Visibility="{x:Bind IsError, Converter={StaticResource BoolToVisibilityConverter}}" />
+                        <TextBlock Text="{x:Bind Name}" />
+                    </StackPanel>
                 </DataTemplate>
             </ListView.ItemTemplate>
         </ListView>
     </ScrollViewer>
-    <NavigationView
+    <Grid
         Grid.Row="4"
         Grid.Column="0"
-        Grid.ColumnSpan="3"
-        CompactPaneLength="0"
-        IsBackButtonVisible="Collapsed"
-        IsSettingsVisible="False"
-        MenuItemsSource="{x:Bind _vm.NameInfoLabelsSource, Mode=OneWay}"
-        PaneDisplayMode="Top"
-        SelectedItem="{x:Bind _vm.SelectedNameInfoLabel, Mode=TwoWay}">
-        <NavigationView.MenuItemTemplate>
-            <DataTemplate x:DataType="local:NameInfoLabel">
-                <TextBlock Style="{StaticResource NameInfoLabelStyle}" Text="{x:Bind Type, Converter={StaticResource NameInfoLabelTypeToString}}" />
-            </DataTemplate>
-        </NavigationView.MenuItemTemplate>
-        <ScrollViewer Padding="20">
-            <TextBlock
-                x:Name="NameInfoBlock"
-                VerticalAlignment="Top"
-                Style="{StaticResource NameInfoBlockStyle}" />
-        </ScrollViewer>
-    </NavigationView>
+        Grid.ColumnSpan="3">
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="Auto" />
+            <ColumnDefinition Width="*" />
+        </Grid.ColumnDefinitions>
+        <TextBlock Style="{StaticResource SelectedLabelBlockStyle}" Text="{x:Bind _vm.SelectedNameInfoLabelTextBlock, Mode=OneWay}" />
+        <NavigationView
+            Grid.Column="1"
+            CompactPaneLength="0"
+            IsBackButtonVisible="Collapsed"
+            IsSettingsVisible="False"
+            MenuItemsSource="{x:Bind _vm.NameInfoLabelsSource, Mode=OneWay}"
+            PaneDisplayMode="Top"
+            SelectedItem="{x:Bind _vm.SelectedNameInfoLabel, Mode=TwoWay}">
+            <NavigationView.MenuItemTemplate>
+                <DataTemplate x:DataType="local:NameInfoLabel">
+                    <TextBlock Style="{StaticResource NameInfoLabelStyle}" Text="{x:Bind Type, Converter={StaticResource NameInfoLabelTypeToStringConverter}}" />
+                </DataTemplate>
+            </NavigationView.MenuItemTemplate>
+            <ScrollViewer Padding="20">
+                <TextBlock
+                    x:Name="NameInfoBlock"
+                    VerticalAlignment="Top"
+                    Style="{StaticResource NameInfoBlockStyle}" />
+            </ScrollViewer>
+        </NavigationView>
+    </Grid>
     <ContentDialog
         x:Name="MessageDialog"
-        Title="Parser Occurs Exception"
+        Title="Parsing has Exception"
         Grid.Row="0"
         Grid.Column="0"
         CloseButtonText="Close"
-        PrimaryButtonClick="OpenFileInExplorer"
-        PrimaryButtonText="Open exception log">
+        PrimaryButtonClick="OpenParsingLogInExplorer"
+        PrimaryButtonText="Open log">
         <ScrollViewer>
             <TextBlock Text="{x:Bind _vm.MessageDialogText, Mode=OneWay}" />
         </ScrollViewer>
     </ContentDialog>
+    <InfoBar
+        Grid.Row="2"
+        Grid.Column="0"
+        Grid.ColumnSpan="3"
+        IsOpen="{x:Bind _vm.WarningMessage, Mode=OneWay, Converter={StaticResource StringIsNotEmptyToBoolConverter}}"
+        IsClosable="false"
+        IsIconVisible="false"
+        Severity="Error">
+        <InfoBar.ActionButton>
+            <Button Content="查看所有警告" Click="InfoBarButtonTapped" />
+        </InfoBar.ActionButton>
+    </InfoBar>
 </Grid>
