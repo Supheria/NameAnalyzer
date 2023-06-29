@@ -13,7 +13,7 @@ public class NameInfoLabelTypeToStringConverter : IValueConverter
         NameInfoLabelType.Value => "Value",
         NameInfoLabelType.SourceFile => "Source File",
         NameInfoLabelType.Warning => "!",
-        _ => ""
+        _ => "x"
     };
 
     public object Convert(object value, Type targetType, object parameter, string language) => Convert(value);

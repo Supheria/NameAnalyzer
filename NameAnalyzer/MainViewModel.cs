@@ -1,7 +1,6 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
-using System.Xml.Linq;
 using CommunityToolkit.Mvvm.ComponentModel;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Documents;
@@ -11,7 +10,6 @@ using Parser.Data.TokenTypes;
 using Parser.Helper;
 using Utilities;
 using WinUI3Utilities;
-using System.Xml.Linq;
 
 namespace NameAnalyzer;
 
@@ -64,10 +62,13 @@ public partial class MainViewModel : ObservableObject
         set
         {
             _levelMap = value;
+            OnPropertyChanged();
             OnPropertyChanged(nameof(MaxLevel));
+
             // 并且刷新NamePickerSource和PropertyNamesSource
             SelectedLevel = 0;
             SelectedNameIndex = 0;
+            OnPropertyChanged(nameof(SelectionShowText));
             StringBuilder warningMessage = new();
             foreach (var infos in value.Values.SelectMany(nameList => nameList.Values))
             {
@@ -108,19 +109,16 @@ public partial class MainViewModel : ObservableObject
         {
             _selectedNameIndex = value;
             OnPropertyChanged();
-            
+
             var selectedName = SelectedName;
             if (!LevelMap.TryGetValue((uint)SelectedName.Level, out var names) ||
                 !names.TryGetValue(selectedName.Name, out var infos))
-                return;
-            SetNameInfoBlock(infos);
-            
-            OnPropertyChanged(nameof(NameInfoLabelsSource));
-            if (SelectedNameInfoLabel!.Type is NameInfoLabelType.None)
-                SelectedNameInfoLabel = new(NameInfoLabelType.Type);
-            OnPropertyChanged(nameof(SelectedNameInfoLabel));
-            SetNameInfoBlockSource();
+                SetNameInfoBlock(new());
+            else
+                SetNameInfoBlock(infos);
+
             OnPropertyChanged(nameof(SelectedName));
+            OnPropertyChanged(nameof(SelectionShowText));
         }
     }
     private int _selectedNameIndex;
@@ -128,8 +126,6 @@ public partial class MainViewModel : ObservableObject
     private void SetNameInfoBlock(List<TokenInfo> infos)
     {
         NameInfoBlocks = new();
-        if (infos.Count is 0)
-            return;
         var types = new HashSet<string>();
         var sources = new HashSet<string>();
         var properties = new HashSet<string>();
@@ -163,6 +159,10 @@ public partial class MainViewModel : ObservableObject
             NameInfoBlocks[NameInfoLabelType.PropertyName] = properties;
         if (values.Count > 0)
             NameInfoBlocks[NameInfoLabelType.Value] = values;
+        NameInfoBlocks[NameInfoLabelType.None] = new();
+
+        OnPropertyChanged(nameof(NameInfoLabelsSource));
+        SetNameInfoBlockSource();
     }
 
     public NameItem SelectedName => SelectedNameIndex is not -1 && SelectedNameIndex < NameListSource.Count
@@ -179,12 +179,12 @@ public partial class MainViewModel : ObservableObject
             _selectedNameInfoLabel = value;
             OnPropertyChanged();
             SetNameInfoBlockSource();
-            OnPropertyChanged(nameof(SelectedNameInfoLabelTextBlock));
+            OnPropertyChanged(nameof(SelectionShowText));
         }
     }
     private NameInfoLabel _selectedNameInfoLabel = new(NameInfoLabelType.None);
 
-    public string SelectedNameInfoLabelTextBlock => SelectedName.Level is -1
+    public string SelectionShowText => SelectedName.Level is -1
         ? ""
         : $"{SelectedName.Name} ({SelectedName.Level})\n\n{NameInfoLabelTypeToStringConverter.Convert(GetRealNameInfoLabelType())}";
 
@@ -193,6 +193,8 @@ public partial class MainViewModel : ObservableObject
         NameInfoBlockSource.Clear();
 
         var type = GetRealNameInfoLabelType();
+        if (type is NameInfoLabelType.None)
+            return;
         foreach (var run in NameInfoBlocks[type].Select(text =>
                      new Run { Text = text }))
         {
@@ -226,7 +228,7 @@ public partial class MainViewModel : ObservableObject
             };
         }
 
-        return !NameInfoBlocks.ContainsKey(type) ? NameInfoLabelType.Type : type;
+        return !NameInfoBlocks.ContainsKey(type) ? NameInfoLabelType.None : type;
     }
 
     public List<NameItem> NameListSource

@@ -127,7 +127,7 @@
             <ColumnDefinition Width="Auto" />
             <ColumnDefinition Width="*" />
         </Grid.ColumnDefinitions>
-        <TextBlock Style="{StaticResource SelectedLabelBlockStyle}" Text="{x:Bind _vm.SelectedNameInfoLabelTextBlock, Mode=OneWay}" />
+        <TextBlock Style="{StaticResource SelectedLabelBlockStyle}" Text="{x:Bind _vm.SelectionShowText, Mode=OneWay}" />
         <NavigationView
             Grid.Column="1"
             CompactPaneLength="0"
@@ -151,7 +151,7 @@
     </Grid>
     <ContentDialog
         x:Name="MessageDialog"
-        Title="Parsing has Exception"
+        Title="Parsing Exception"
         Grid.Row="0"
         Grid.Column="0"
         CloseButtonText="Close"
@@ -168,9 +168,9 @@
         IsOpen="{x:Bind _vm.WarningMessage, Mode=OneWay, Converter={StaticResource StringIsNotEmptyToBoolConverter}}"
         IsClosable="false"
         IsIconVisible="false"
-        Severity="Error">
+        Severity="Informational">
         <InfoBar.ActionButton>
-            <Button Content="查看所有警告" Click="InfoBarButtonTapped" />
+            <Button Content="Check All Warnings" Click="InfoBarButtonTapped" />
         </InfoBar.ActionButton>
     </InfoBar>
 </Grid>
