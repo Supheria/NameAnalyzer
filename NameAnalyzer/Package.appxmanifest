@@ -9,14 +9,14 @@
 
   <Identity
     Name="947f214e-f71d-4959-b93a-1ed5e95e7594"
-    Publisher="CN=poker"
-    Version="1.0.0.0" />
+    Publisher="CN=Supheria"
+    Version="1.0.1.0" />
 
   <mp:PhoneIdentity PhoneProductId="947f214e-f71d-4959-b93a-1ed5e95e7594" PhonePublisherId="00000000-0000-0000-0000-000000000000"/>
 
   <Properties>
     <DisplayName>NameAnalyzer</DisplayName>
-    <PublisherDisplayName>poker</PublisherDisplayName>
+    <PublisherDisplayName>Supheria</PublisherDisplayName>
     <Logo>Assets\StoreLogo.png</Logo>
   </Properties>
 

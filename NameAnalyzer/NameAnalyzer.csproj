@@ -12,6 +12,17 @@
         <Nullable>enable</Nullable>
         <LangVersion>preview</LangVersion>
         <EnableMsixTooling>true</EnableMsixTooling>
+        <GenerateAppInstallerFile>False</GenerateAppInstallerFile>
+        <AppxPackageSigningEnabled>True</AppxPackageSigningEnabled>
+        <PackageCertificateThumbprint>17BA4450ED04CFB4647C677B02B1BE4C2CF33813</PackageCertificateThumbprint>
+        <AppxPackageSigningTimestampDigestAlgorithm>SHA256</AppxPackageSigningTimestampDigestAlgorithm>
+        <AppxAutoIncrementPackageRevision>True</AppxAutoIncrementPackageRevision>
+        <AppxSymbolPackageEnabled>False</AppxSymbolPackageEnabled>
+        <GenerateTestArtifacts>True</GenerateTestArtifacts>
+        <AppxBundle>Never</AppxBundle>
+        <AppInstallerUri>C:\develop</AppInstallerUri>
+        <HoursBetweenUpdateChecks>0</HoursBetweenUpdateChecks>
+        <AppxBundlePlatforms>x86|x64</AppxBundlePlatforms>
     </PropertyGroup>
     <ItemGroup>
       <None Remove="MainGrid.xaml" />

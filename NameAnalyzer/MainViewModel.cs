@@ -1,6 +1,8 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using ABI.System;
 using CommunityToolkit.Mvvm.ComponentModel;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Documents;
@@ -74,15 +76,26 @@ public partial class MainViewModel : ObservableObject
             {
                 if (!CheckWarning(infos, out var warnings))
                     continue;
-                foreach (var warning in warnings)
-                {
-                    _ = warningMessage.AppendLine(warning).AppendLine();
-                }
+                _ = warningMessage.AppendLine(warnings).AppendLine();
             }
             WarningMessage = warningMessage.ToString();
         }
     }
     private Dictionary<uint, Dictionary<string, List<TokenInfo>>> _levelMap = new();
+
+    public bool OnlyShowWarnedItems
+    {
+        get => _onlyShowWarnedItems;
+        set
+        {
+            _onlyShowWarnedItems = value;
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(NameListSource));
+            SelectedNameIndex = 0;
+        }
+    }
+
+    private bool _onlyShowWarnedItems = false;
 
     /// <summary>
     /// <see cref="NumberBox"/>LevelPicker正选择的项
@@ -96,7 +109,6 @@ public partial class MainViewModel : ObservableObject
             _selectedLevel = value;
             OnPropertyChanged();
             OnPropertyChanged(nameof(NameListSource));
-            // 并且刷新PropertyNamesSource
             SelectedNameIndex = 0;
         }
     }
@@ -150,7 +162,7 @@ public partial class MainViewModel : ObservableObject
         }
 
         if (CheckWarning(infos, out var warnings))
-            NameInfoBlocks[NameInfoLabelType.Warning] = warnings;
+            NameInfoBlocks[NameInfoLabelType.Warning] = new() { warnings };
         if (sources.Count > 0)
             NameInfoBlocks[NameInfoLabelType.SourceFile] = sources;
         if (types.Count > 0)
@@ -165,7 +177,7 @@ public partial class MainViewModel : ObservableObject
         SetNameInfoBlockSource();
     }
 
-    public NameItem SelectedName => SelectedNameIndex is not -1 && SelectedNameIndex < NameListSource.Count
+    public NameItem SelectedName => SelectedNameIndex is not -1 && SelectedNameIndex < NameListSource.Length
         ? NameListSource[SelectedNameIndex]
         : new(-1, "", false);
 
@@ -241,65 +253,101 @@ public partial class MainViewModel : ObservableObject
 
     private const int MaxItemNumber = 150;
 
-    public List<NameItem> NameListSource
+    public NameItem[] NameListSource
     {
         get
         {
             if (!LevelMap.TryGetValue((uint)SelectedLevel, out var nameList))
-                return new();
+                return Array.Empty<NameItem>();
 
             var namesCorrectness = new Dictionary<string, bool>();
-            uint itemNumber = 1;
             foreach (var name in nameList)
-            {
-                if (itemNumber > MaxItemNumber)
-                {
-                    namesCorrectness["..."] = false;
-                    break;
-                }
                 namesCorrectness[name.Key] = CheckWarning(name.Value, out _);
-                itemNumber++;
+            var nameItems = new List<NameItem>();
+            if (OnlyShowWarnedItems)
+                nameItems.AddRange(from item in namesCorrectness where item.Value select new NameItem(SelectedLevel, item.Key, item.Value));
+            else
+            {
+                var itemNumber = 0;
+                foreach (var item in namesCorrectness)
+                {
+                    if (++itemNumber > MaxItemNumber)
+                    {
+                        nameItems.Add(new(SelectedLevel, "...", false));
+                        break;
+                    }
+
+                    nameItems.Add(new(SelectedLevel, item.Key, item.Value));
+                }
             }
-            return namesCorrectness.Select(name => new NameItem(SelectedLevel, name.Key, name.Value)).ToList();
+            return nameItems.ToArray();
         }
     }
 
-    private static bool CheckWarning(List<TokenInfo> infos, out HashSet<string> warnings)
+    private static bool CheckWarning(List<TokenInfo> sameNameInfos, out string warnings)
     {
-        warnings = new();
-        if (infos.Count is 0)
+        warnings = "";
+        if (sameNameInfos.Count is 0)
             return false;
 
-        var duplicateType = false;
-        var duplicateAssignment = new Dictionary<string, Dictionary<Word, List<Token>>>();
-        var token = infos.First().Token;
-        foreach (var info in infos)
+        var multiTypes = new Dictionary<string, Dictionary<Word, Token?>>();
+        var multiAssignments = new Dictionary<string, Dictionary<Word, List<Token>>>();
+
+        var tokenToString = sameNameInfos.First().Token.ToString();
+        foreach (var info in sameNameInfos)
         {
-            if (info.Token.GetType() != token.GetType())
-                duplicateType = true;
-            if (info.Token is not (TaggedValue or ValueArray or TagArray))
+            if (info.Token.ToString() != tokenToString)
+            {
+                warnings = $"inner error: name of {tokenToString} is inconsistent in CheckWarning.";
+                return true;
+            }
+            var token = info.Token;
+            var from = token.From?.Name ?? new Word();
+            var path = info.FilePath;
+
+            if (!multiTypes.ContainsKey(path))
+                multiTypes[path] = new();
+            if (!multiTypes[path].ContainsKey(from))
+                multiTypes[path][from] = token;
+            if (token.GetType() != multiTypes[path][from]?.GetType())
+                multiTypes[path][from] = null;
+
+            if (token is not (TaggedValue or ValueArray or TagArray))
                 continue;
-            if (!duplicateAssignment.ContainsKey(info.FilePath))
-                duplicateAssignment[info.FilePath] = new();
-            var nullWord = new Word();
-            if (!duplicateAssignment[info.FilePath].ContainsKey(info.Token.From?.Name ?? nullWord))
-                duplicateAssignment[info.FilePath][info.Token.From?.Name ?? nullWord] = new();
-            duplicateAssignment[info.FilePath][info.Token.From?.Name ?? nullWord].Add(info.Token);
+            if (!multiAssignments.ContainsKey(path))
+                multiAssignments[path] = new();
+            if (!multiAssignments[path].ContainsKey(from))
+                multiAssignments[path][from] = new();
+            multiAssignments[path][from].Add(token);
         }
 
-        if (duplicateType)
-            _ = warnings.Add($"{token} has different types.");
+        var warningsSb = new StringBuilder();
+        if (ComposeWarning(multiTypes, t => t is null, out var part))
+            _ = warningsSb.Append($"\tMulti-Types\n{part}");
+        if (ComposeWarning(multiAssignments, list => list.Count > 1, out part))
+            _ = warningsSb.Append($"\tMulti-Assignments\n{part}");
+        if (warningsSb.Length > 0)
+            warnings = $"{tokenToString}\n{warningsSb}";
 
-        foreach (var file in duplicateAssignment)
+        return warnings.Length > 0;
+    }
+
+    private static bool ComposeWarning<T>(Dictionary<string, Dictionary<Word, T>> multiAssemble, Func<T, bool> warningFilter,
+        out string part)
+    {
+        part = "";
+        var partSb = new StringBuilder();
+        foreach (var file in multiAssemble)
         {
-            var fromList = file.Value.Where(pair => pair.Value.Count > 1).Select(pair => pair.Key).ToList();
+            var fromList = file.Value.Where(pair => warningFilter(pair.Value)).Select(pair => pair.Key).ToList();
             var sb = new StringBuilder();
-            foreach (var word in fromList)
-                _ = sb.AppendLine($"{word}");
+            foreach (var from in fromList)
+                _ = sb.AppendLine($"\t\t\t{from.ToString()}");
             if (sb.Length > 0)
-                _ = warnings.Add($"{token} in {file.Key} is duplicated from\n{sb}");
+                _ = partSb.Append($"\t\t{file.Key}\n\t\t\tFROM\n{sb}");
         }
-
-        return warnings.Count > 0;
+        if (partSb.Length > 0)
+            part = $"\t\tIN\n{partSb}";
+        return part.Length > 0;
     }
 }

@@ -60,7 +60,7 @@ public sealed partial class MainGrid : Grid
         PathTool.OpenFileOrFolderInShell(_parsingLogDir);
     }
 
-    private async void InfoBarButtonTapped(object sender, RoutedEventArgs e)
+    private async void WarningButtonTapped(object sender, RoutedEventArgs e)
     {
         await File.WriteAllTextAsync(_warningLogDir, _vm.WarningMessage);
         PathTool.OpenFileOrFolderInShell(_warningLogDir);
