@@ -184,9 +184,17 @@ public partial class MainViewModel : ObservableObject
     }
     private NameInfoLabel _selectedNameInfoLabel = new(NameInfoLabelType.None);
 
-    public string SelectionShowText => SelectedName.Level is -1
-        ? ""
-        : $"{SelectedName.Name} ({SelectedName.Level})\n\n{NameInfoLabelTypeToStringConverter.Convert(GetRealNameInfoLabelType())}";
+    public string SelectionShowText
+    {
+        get
+        {
+            if (SelectedName.Level is -1)
+                return "";
+            var tooLong = SelectedName.Name.Length > 10;
+            return
+                $"{SelectedName.Name[..(tooLong ? 10 : SelectedName.Name.Length)]}{(tooLong ? "..." : "")}({SelectedName.Level})\n\n{NameInfoLabelTypeToStringConverter.Convert(GetRealNameInfoLabelType())}";
+        }
+    }
 
     private void SetNameInfoBlockSource()
     {
@@ -231,6 +239,8 @@ public partial class MainViewModel : ObservableObject
         return !NameInfoBlocks.ContainsKey(type) ? NameInfoLabelType.None : type;
     }
 
+    private const int MaxItemNumber = 150;
+
     public List<NameItem> NameListSource
     {
         get
@@ -239,8 +249,17 @@ public partial class MainViewModel : ObservableObject
                 return new();
 
             var namesCorrectness = new Dictionary<string, bool>();
+            uint itemNumber = 1;
             foreach (var name in nameList)
+            {
+                if (itemNumber > MaxItemNumber)
+                {
+                    namesCorrectness["..."] = false;
+                    break;
+                }
                 namesCorrectness[name.Key] = CheckWarning(name.Value, out _);
+                itemNumber++;
+            }
             return namesCorrectness.Select(name => new NameItem(SelectedLevel, name.Key, name.Value)).ToList();
         }
     }
@@ -273,8 +292,12 @@ public partial class MainViewModel : ObservableObject
 
         foreach (var file in duplicateAssignment)
         {
-            foreach (var pair in file.Value.Where(pair => pair.Value.Count > 1))
-                _ = warnings.Add($"{token} is duplicated from {pair.Key} in {file.Key}");
+            var fromList = file.Value.Where(pair => pair.Value.Count > 1).Select(pair => pair.Key).ToList();
+            var sb = new StringBuilder();
+            foreach (var word in fromList)
+                _ = sb.AppendLine($"{word}");
+            if (sb.Length > 0)
+                _ = warnings.Add($"{token} in {file.Key} is duplicated from\n{sb}");
         }
 
         return warnings.Count > 0;
