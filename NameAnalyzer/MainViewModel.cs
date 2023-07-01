@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
-using ABI.System;
 using CommunityToolkit.Mvvm.ComponentModel;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Documents;
@@ -22,16 +21,19 @@ public record NameInfoLabel(NameInfoLabelType Type);
 public enum NameInfoLabelType
 {
     None,
+    Warning,
+    SourceFile,
     Type,
+    From,
     PropertyName,
     Value,
-    SourceFile,
-    Warning
 }
 
 public partial class MainViewModel : ObservableObject
 {
     [ObservableProperty] private string _messageDialogText = "";
+
+    [ObservableProperty] private int _itemNumber;
 
     public NameInfoLabel[] NameInfoLabelsSource => NameInfoBlocks.Select(block => new NameInfoLabel(block.Key)).ToArray();
 
@@ -43,6 +45,8 @@ public partial class MainViewModel : ObservableObject
     /// 最大的Level值，即<see cref="NumberBox"/>LevelPicker最大值
     /// </summary>
     public int MaxLevel => LevelMap.Count is 0 ? 0 : LevelMap.Count - 1;
+    private const string AllTypes = "all";
+    private const int MaxItemNumber = 300;
 
     public string WarningMessage
     {
@@ -70,6 +74,8 @@ public partial class MainViewModel : ObservableObject
             // 并且刷新NamePickerSource和PropertyNamesSource
             SelectedLevel = 0;
             SelectedNameIndex = 0;
+            SelectedTypeIndex = 0;
+            OnlyShowWarnedItems = false;
             OnPropertyChanged(nameof(SelectionShowText));
             StringBuilder warningMessage = new();
             foreach (var infos in value.Values.SelectMany(nameList => nameList.Values))
@@ -90,8 +96,10 @@ public partial class MainViewModel : ObservableObject
         {
             _onlyShowWarnedItems = value;
             OnPropertyChanged();
-            OnPropertyChanged(nameof(NameListSource));
+            SetNameListSource();
+            SetTypeListSource();
             SelectedNameIndex = 0;
+            SelectedTypeIndex = 0;
         }
     }
 
@@ -108,11 +116,58 @@ public partial class MainViewModel : ObservableObject
             // 不判断是否相等就赋值，是为了不论何时都刷新Source
             _selectedLevel = value;
             OnPropertyChanged();
-            OnPropertyChanged(nameof(NameListSource));
+            SetNameListSource();
+            SetTypeListSource();
             SelectedNameIndex = 0;
+            SelectedTypeIndex = 0;
         }
     }
     private int _selectedLevel;
+
+    public List<string> TypeListSource { get; set; } = new();
+
+    private void SetTypeListSource()
+    {
+        TypeListSource = new();
+        if (!LevelMap.TryGetValue((uint)SelectedLevel, out var nameList))
+        {
+            OnPropertyChanged(nameof(TypeListSource));
+            return;
+        }
+
+        var types = new HashSet<string>();
+        if (OnlyShowWarnedItems)
+            foreach (var info in nameList.Values.Where(infos => CheckWarning(infos, out _)).SelectMany(infos => infos))
+                _ = types.Add(info.Token.GetType().Name);
+        else
+            foreach (var info in nameList.Values.SelectMany(infos => infos))
+                _ = types.Add(info.Token.GetType().Name);
+
+        if (types.Count > 0)
+            TypeListSource.Add(AllTypes);
+        TypeListSource.AddRange(types);
+
+        OnPropertyChanged(nameof(TypeListSource));
+    }
+
+    public int SelectedTypeIndex
+    {
+        get => _selectedTypeIndex;
+        set
+        {
+            // 不判断是否相等就赋值，是为了不论何时都刷新Source
+            _selectedTypeIndex = value;
+            OnPropertyChanged();
+            SetNameListSource();
+            SelectedNameIndex = 0;
+        }
+    }
+    private int _selectedTypeIndex;
+
+    private string SelectedType => SelectedTypeIndex is not -1 && SelectedTypeIndex < TypeListSource.Count
+        ? TypeListSource[SelectedTypeIndex]
+        : AllTypes;
+
 
     public int SelectedNameIndex
     {
@@ -142,31 +197,55 @@ public partial class MainViewModel : ObservableObject
         var sources = new HashSet<string>();
         var properties = new HashSet<string>();
         var values = new HashSet<string>();
-        foreach (var info in infos)
+        var fromNames = new HashSet<string>();
+        var fromPositions = new HashSet<TextPosition>();
+
+        var pickedInfoListByType = infos;
+        if (SelectedType is not AllTypes)
+            pickedInfoListByType = infos.Where(info => info.Token.GetType().Name == SelectedType).ToList();
+
+        foreach (var info in pickedInfoListByType)
         {
-            _ = types.Add(info.Token.GetType().Name);
+            var token = info.Token;
+            _ = types.Add(token.GetType().Name);
             _ = sources.Add(info.FilePath);
 
-            switch (info.Token)
+            switch (token)
             {
                 case Scope scope:
-                    foreach (var token in scope.Property)
-                        _ = properties.Add(token.Name.Text);
+                    foreach (var t in scope.Property)
+                        _ = properties.Add(t.Name.Text);
                     break;
                 case TaggedValue or ValueArray or TagArray:
-                    _ = values.Add(info.Token.ValueToString());
+                    _ = values.Add(token.ValueToString());
                     break;
                 default:
                     break;
             }
+
+            _ = fromNames.Add(token.From?.ToString() ?? "file root");
+            if (token.From is null)
+                continue;
+            _ = fromPositions.Add(token.From.Name.Position);
         }
 
-        if (CheckWarning(infos, out var warnings))
-            NameInfoBlocks[NameInfoLabelType.Warning] = new() { warnings };
+        if (CheckWarning(infos, out var warning))
+            NameInfoBlocks[NameInfoLabelType.Warning] = new() { warning };
         if (sources.Count > 0)
             NameInfoBlocks[NameInfoLabelType.SourceFile] = sources;
         if (types.Count > 0)
             NameInfoBlocks[NameInfoLabelType.Type] = types;
+        if (fromNames.Count > 0)
+        {
+            NameInfoBlocks[NameInfoLabelType.From] =
+                new() { new StringBuilder().AppendJoin('\n', fromNames).ToString() };
+            var sortedFromPositions = fromPositions.ToList();
+            sortedFromPositions.Sort();
+            var sb = new StringBuilder();
+            foreach (var position in sortedFromPositions)
+                _ = sb.AppendLine(position.ToString());
+            _ = NameInfoBlocks[NameInfoLabelType.From].Add(sb.ToString());
+        }
         if (properties.Count > 0)
             NameInfoBlocks[NameInfoLabelType.PropertyName] = properties;
         if (values.Count > 0)
@@ -177,7 +256,7 @@ public partial class MainViewModel : ObservableObject
         SetNameInfoBlockSource();
     }
 
-    public NameItem SelectedName => SelectedNameIndex is not -1 && SelectedNameIndex < NameListSource.Length
+    public NameItem SelectedName => SelectedNameIndex is not -1 && SelectedNameIndex < NameListSource.Count
         ? NameListSource[SelectedNameIndex]
         : new(-1, "", false);
 
@@ -251,42 +330,55 @@ public partial class MainViewModel : ObservableObject
         return !NameInfoBlocks.ContainsKey(type) ? NameInfoLabelType.None : type;
     }
 
-    private const int MaxItemNumber = 150;
+    public List<NameItem> NameListSource { get; set; } = new();
 
-    public NameItem[] NameListSource
+    private void SetNameListSource()
     {
-        get
+        NameListSource = new();
+        if (!LevelMap.TryGetValue((uint)SelectedLevel, out var nameList))
         {
-            if (!LevelMap.TryGetValue((uint)SelectedLevel, out var nameList))
-                return Array.Empty<NameItem>();
-
-            var namesCorrectness = new Dictionary<string, bool>();
-            foreach (var name in nameList)
-                namesCorrectness[name.Key] = CheckWarning(name.Value, out _);
-            var nameItems = new List<NameItem>();
-            if (OnlyShowWarnedItems)
-                nameItems.AddRange(from item in namesCorrectness where item.Value select new NameItem(SelectedLevel, item.Key, item.Value));
-            else
-            {
-                var itemNumber = 0;
-                foreach (var item in namesCorrectness)
-                {
-                    if (++itemNumber > MaxItemNumber)
-                    {
-                        nameItems.Add(new(SelectedLevel, "...", false));
-                        break;
-                    }
-
-                    nameItems.Add(new(SelectedLevel, item.Key, item.Value));
-                }
-            }
-            return nameItems.ToArray();
+            OnPropertyChanged(nameof(NameListSource));
+            return;
         }
+
+        var pickedNamesByType = nameList;
+        if (SelectedType is not AllTypes)
+        {
+            pickedNamesByType = new();
+            foreach (var name in nameList.Where(name =>
+                         name.Value.Any(info => info.Token.GetType().Name == SelectedType)))
+                pickedNamesByType[name.Key] = name.Value;
+        }
+        var namesCorrectness = new Dictionary<string, bool>();
+        foreach (var name in pickedNamesByType)
+            namesCorrectness[name.Key] = CheckWarning(name.Value, out _);
+        if (OnlyShowWarnedItems)
+        {
+            NameListSource.AddRange(from item in namesCorrectness where item.Value select new NameItem(SelectedLevel, item.Key, item.Value));
+            ItemNumber = NameListSource.Count;
+        }
+        else
+        {
+            var itemNumber = 0;
+            foreach (var item in namesCorrectness)
+            {
+                if (++itemNumber > MaxItemNumber)
+                {
+                    NameListSource.Add(new(SelectedLevel, "...", false));
+                    break;
+                }
+
+                NameListSource.Add(new(SelectedLevel, item.Key, item.Value));
+            }
+
+            ItemNumber = namesCorrectness.Count;
+        }
+        OnPropertyChanged(nameof(NameListSource));
     }
 
-    private static bool CheckWarning(List<TokenInfo> sameNameInfos, out string warnings)
+    private static bool CheckWarning(List<TokenInfo> sameNameInfos, out string warning)
     {
-        warnings = "";
+        warning = "";
         if (sameNameInfos.Count is 0)
             return false;
 
@@ -298,7 +390,7 @@ public partial class MainViewModel : ObservableObject
         {
             if (info.Token.ToString() != tokenToString)
             {
-                warnings = $"inner error: name of {tokenToString} is inconsistent in CheckWarning.";
+                warning = $"inner error: name of {tokenToString} is inconsistent in CheckWarning.";
                 return true;
             }
             var token = info.Token;
@@ -321,15 +413,23 @@ public partial class MainViewModel : ObservableObject
             multiAssignments[path][from].Add(token);
         }
 
-        var warningsSb = new StringBuilder();
-        if (ComposeWarning(multiTypes, t => t is null, out var part))
-            _ = warningsSb.Append($"\tMulti-Types\n{part}");
-        if (ComposeWarning(multiAssignments, list => list.Count > 1, out part))
-            _ = warningsSb.Append($"\tMulti-Assignments\n{part}");
-        if (warningsSb.Length > 0)
-            warnings = $"{tokenToString}\n{warningsSb}";
+        var summery = new StringBuilder();
+        var warningSb = new StringBuilder();
+        if (ComposeWarning(multiTypes, t => t is null, out var type))
+        {
+            summery.Append("multi-types ");
+            _ = warningSb.Append($"\tMulti-Types\n{type}");
+        }
 
-        return warnings.Length > 0;
+        if (ComposeWarning(multiAssignments, list => list.Count > 1, out var assign))
+        {
+            summery.Append("multi-assignments ");
+            _ = warningSb.Append($"\tMulti-Assignments\n{assign}");
+        }
+        if (warningSb.Length > 0)
+            warning = $"{tokenToString} : {summery}\n{warningSb}";
+
+        return warning.Length > 0;
     }
 
     private static bool ComposeWarning<T>(Dictionary<string, Dictionary<Word, T>> multiAssemble, Func<T, bool> warningFilter,

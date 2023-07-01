@@ -15,6 +15,7 @@
         <converters:BoolToVisibilityConverter x:Key="BoolToVisibilityConverter" />
         <converters:StringIsNotEmptyToVisibilityConverter x:Key="StringIsNotEmptyToVisibilityConverter" />
         <converters:NameInfoLabelTypeToStringConverter x:Key="NameInfoLabelTypeToStringConverter" />
+        <converters:IntToStringForItemNumberConverter x:Key="IntToStringForItemNumberConverter" />
         <Style x:Key="NameInfoLabelStyle" TargetType="TextBlock">
             <Setter Property="Margin" Value="{StaticResource PropertyNameMargin}" />
             <Setter Property="FontSize" Value="14" />
@@ -44,15 +45,14 @@
         <RowDefinition Height="400" />
     </Grid.RowDefinitions>
     <Grid.ColumnDefinitions>
-        <ColumnDefinition Width="Auto" />
-        <ColumnDefinition Width="Auto" />
         <ColumnDefinition Width="*" />
+        <ColumnDefinition Width="Auto" />
     </Grid.ColumnDefinitions>
     <Border
         x:Name="TitleBar"
         Grid.Row="0"
         Grid.Column="0"
-        Grid.ColumnSpan="3"
+        Grid.ColumnSpan="2"
         Height="32"
         Margin="10,0"
         VerticalAlignment="Top"
@@ -71,28 +71,34 @@
                 Text="{x:Bind helper:CurrentContext.Title}" />
         </StackPanel>
     </Border>
-    <CheckBox
-        Grid.Row="1"
-        Grid.Column="1"
-        Margin="15"
-        VerticalAlignment="Center"
-        HorizontalContentAlignment="Right"
-        IsChecked="{x:Bind _vm.OnlyShowWarnedItems, Mode=TwoWay}"
-        ToolTipService.ToolTip="Only Show Warned" />
-    <NumberBox
+    <StackPanel
         Grid.Row="1"
         Grid.Column="0"
-        Margin="5,0,0,0"
-        VerticalAlignment="Center"
-        Maximum="{x:Bind _vm.MaxLevel, Mode=OneWay}"
-        Minimum="0"
-        SmallChange="1"
-        SpinButtonPlacementMode="Inline"
-        ToolTipService.ToolTip="Level"
-        Value="{x:Bind _vm.SelectedLevel, Mode=TwoWay}" />
+        Orientation="Horizontal">
+        <NumberBox
+            Margin="5,0,0,0"
+            VerticalAlignment="Center"
+            Maximum="{x:Bind _vm.MaxLevel, Mode=OneWay}"
+            Minimum="0"
+            SmallChange="1"
+            SpinButtonPlacementMode="Inline"
+            ToolTipService.ToolTip="Level"
+            Value="{x:Bind _vm.SelectedLevel, Mode=TwoWay}" />
+        <ComboBox
+            Margin="15"
+            VerticalAlignment="Center"
+            ItemsSource="{x:Bind _vm.TypeListSource, Mode=OneWay}"
+            SelectedIndex="{x:Bind _vm.SelectedTypeIndex, Mode=TwoWay}"
+            ToolTipService.ToolTip="Type" />
+        <CheckBox
+            VerticalAlignment="Center"
+            IsChecked="{x:Bind _vm.OnlyShowWarnedItems, Mode=TwoWay}"
+            ToolTipService.ToolTip="Only Show Warned Items" />
+    </StackPanel>
+
     <CommandBar
         Grid.Row="1"
-        Grid.Column="2"
+        Grid.Column="1"
         OverflowButtonVisibility="Collapsed">
         <AppBarSeparator />
         <AppBarButton
@@ -117,7 +123,7 @@
     <ScrollViewer
         Grid.Row="3"
         Grid.Column="0"
-        Grid.ColumnSpan="3">
+        Grid.ColumnSpan="2">
         <ListView ItemsSource="{x:Bind _vm.NameListSource, Mode=OneWay}" SelectedIndex="{x:Bind _vm.SelectedNameIndex, Mode=TwoWay}">
             <ListView.ItemTemplate>
                 <DataTemplate x:DataType="local:NameItem">
@@ -135,12 +141,22 @@
     <Grid
         Grid.Row="4"
         Grid.Column="0"
-        Grid.ColumnSpan="3">
+        Grid.ColumnSpan="2">
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="Auto" />
             <ColumnDefinition Width="*" />
         </Grid.ColumnDefinitions>
-        <TextBlock Style="{StaticResource SelectedLabelBlockStyle}" Text="{x:Bind _vm.SelectionShowText, Mode=OneWay}" />
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="*" />
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
+            <TextBlock Style="{StaticResource SelectedLabelBlockStyle}" Text="{x:Bind _vm.SelectionShowText, Mode=OneWay}" />
+            <TextBlock
+                Grid.Row="1"
+                Style="{StaticResource SelectedLabelBlockStyle}"
+                Text="{x:Bind _vm.ItemNumber, Converter={StaticResource IntToStringForItemNumberConverter}, Mode=OneWay}" />
+        </Grid>
         <NavigationView
             Grid.Column="1"
             CompactPaneLength="0"
@@ -175,9 +191,7 @@
                 <TextBlock Text="Parsing Exception" />
             </StackPanel>
         </ContentDialog.Title>
-        <ScrollViewer
-            HorizontalScrollMode="Auto"
-            HorizontalScrollBarVisibility="Auto">
+        <ScrollViewer HorizontalScrollBarVisibility="Auto" HorizontalScrollMode="Auto">
             <TextBlock Text="{x:Bind _vm.MessageDialogText, Mode=OneWay}" />
         </ScrollViewer>
     </ContentDialog>
@@ -185,7 +199,7 @@
         Title="Some Warnings Happen"
         Grid.Row="2"
         Grid.Column="0"
-        Grid.ColumnSpan="3"
+        Grid.ColumnSpan="2"
         IsOpen="{x:Bind _vm.WarningMessage, Mode=OneWay, Converter={StaticResource StringIsNotEmptyToBoolConverter}}"
         Severity="Warning">
         <InfoBar.ActionButton>
@@ -194,5 +208,4 @@
             </Button>
         </InfoBar.ActionButton>
     </InfoBar>
-
 </Grid>
