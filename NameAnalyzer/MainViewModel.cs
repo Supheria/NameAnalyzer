@@ -9,7 +9,7 @@ using NameAnalyzer.Converters;
 using Parser.Data;
 using Parser.Data.TokenTypes;
 using Parser.Helper;
-using Utilities;
+using Windows.System;
 using WinUI3Utilities;
 
 namespace NameAnalyzer;
@@ -300,7 +300,7 @@ public partial class MainViewModel : ObservableObject
             if (type is NameInfoLabelType.SourceFile)
             {
                 var hyperlink = new Hyperlink { Inlines = { run } };
-                hyperlink.Click += (s, _) => PathTool.OpenFileOrFolderInShell(s.Inlines[0].To<Run>().Text);
+                hyperlink.Click += (s, _) => Launcher.LaunchUriAsync(new(s.Inlines[0].To<Run>().Text));
                 NameInfoBlockSource.Add(hyperlink);
                 NameInfoBlockSource.Add(new LineBreak());
                 NameInfoBlockSource.Add(new LineBreak());

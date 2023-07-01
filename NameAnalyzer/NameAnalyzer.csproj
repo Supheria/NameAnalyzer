@@ -55,7 +55,6 @@
         <ProjectCapability Include="Msix" />
     </ItemGroup>
     <ItemGroup>
-      <ProjectReference Include="..\..\..\Utilities\Utilities\Utilities.csproj" />
       <ProjectReference Include="..\..\Hoi4 Script Parser\Hoi4 Script Parser\Parser\Parser.csproj" />
     </ItemGroup>
     <ItemGroup>

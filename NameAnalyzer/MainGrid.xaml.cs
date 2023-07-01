@@ -4,8 +4,8 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
 using Parser.Helper;
-using Utilities;
 using Windows.Storage;
+using Windows.System;
 using WinUI3Utilities;
 
 namespace NameAnalyzer;
@@ -55,14 +55,14 @@ public sealed partial class MainGrid : Grid
         _ = await MessageDialog.ShowAsync();
     }
 
-    private void OpenParsingLogInExplorer(ContentDialog sender, ContentDialogButtonClickEventArgs e)
+    private async void OpenParsingLogInExplorer(ContentDialog sender, ContentDialogButtonClickEventArgs e)
     {
-        PathTool.OpenFileOrFolderInShell(_parsingLogDir);
+        _ = await Launcher.LaunchUriAsync(new(_parsingLogDir));
     }
 
     private async void WarningButtonTapped(object sender, RoutedEventArgs e)
     {
         await File.WriteAllTextAsync(_warningLogDir, _vm.WarningMessage);
-        PathTool.OpenFileOrFolderInShell(_warningLogDir);
+        _ = await Launcher.LaunchUriAsync(new(_warningLogDir));
     }
 }
