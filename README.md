@@ -1,7 +1,9 @@
-# NameAnalyzer
+# Name Analyzer
+
+See afterwards update in [The Road to Touhou](https://github.com/Supheria/The_Road_to_Touhou)
+
+
 
 **所依赖的项目**
 
-*与此项目放在同一解决方案下，并添加此项目对依赖项目的项目引用*
-
-[Supheria/Hoi4-Script-Parser: normal Hoi4 script parser (github.com)](https://github.com/Supheria/Hoi4-Script-Parser)
+已添加对此项目生成的 dll 的引用：[Hoi4-Script-Parser](https://github.com/Supheria/Hoi4-Script-Parser)
